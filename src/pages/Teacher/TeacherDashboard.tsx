@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import { Users, Eye, EyeOff, Activity, LogOut, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
@@ -12,12 +13,30 @@ export default function TeacherDashboard() {
         attentionMode,
         toggleAttention,
         kickStudent,
-        leaveRoom
+        leaveRoom,
+        requestStudentModel,
+        onFeaturedData
     } = useClassroom();
 
     // Placeholder auth state
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
+    const navigate = useNavigate();
+
+    // Listen for incoming student model
+    useEffect(() => {
+        onFeaturedData((data) => {
+            // Navigate to SupervisedLab with data
+            navigate('/supervised', {
+                state: {
+                    featured: true,
+                    studentName: data.studentName,
+                    thumbnails: data.thumbnails,
+                    dataset: data.dataset
+                }
+            });
+        });
+    }, []); // Only bind once
 
     if (!isAuthenticated) {
         return <LoginPlaceholder onLogin={() => setIsAuthenticated(true)} />;
@@ -30,13 +49,22 @@ export default function TeacherDashboard() {
                     <h1 className="text-3xl font-bold text-slate-900">Teacher Dashboard</h1>
                     <p className="text-slate-500">Create a classroom session to get started.</p>
                 </div>
-                <button
-                    onClick={createRoom}
-                    className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3"
-                >
-                    <Users className="w-6 h-6" />
-                    Create Classroom
-                </button>
+                <div className="flex gap-4">
+                    <button
+                        onClick={createRoom}
+                        className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3"
+                    >
+                        <Users className="w-6 h-6" />
+                        Create Classroom
+                    </button>
+                    <button
+                        onClick={() => navigate('/home')}
+                        className="px-8 py-4 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 text-lg font-semibold rounded-xl shadow-sm transition-all flex items-center gap-3"
+                    >
+                        <Activity className="w-6 h-6" />
+                        Go to Demo
+                    </button>
+                </div>
             </div>
         );
     }
@@ -57,6 +85,12 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate('/home')}
+                        className="px-4 py-3 bg-white border border-slate-200 text-slate-600 font-medium rounded-xl hover:text-indigo-600 hover:border-indigo-200 transition-colors"
+                    >
+                        Go to Demo
+                    </button>
                     <button
                         onClick={() => toggleAttention(!attentionMode)}
                         className={clsx(
@@ -138,13 +172,21 @@ export default function TeacherDashboard() {
                                         </div>
                                     </div>
 
-                                    <button
-                                        onClick={() => kickStudent(student.id)}
-                                        className="text-slate-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition-colors"
-                                        title="Kick Student"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => requestStudentModel(student.id)}
+                                            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-medium transition-colors border border-indigo-200"
+                                        >
+                                            Feature Student
+                                        </button>
+                                        <button
+                                            onClick={() => kickStudent(student.id)}
+                                            className="text-slate-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition-colors"
+                                            title="Kick Student"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}

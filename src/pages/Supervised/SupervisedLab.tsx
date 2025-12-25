@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import * as tf from '@tensorflow/tfjs';
 import * as knnClassifier from '@tensorflow-models/knn-classifier';
 import { loadMobileNet, getEmbedding } from '../../lib/ml/mobilenet';
@@ -44,6 +46,11 @@ export default function SupervisedLab() {
             totalSamples > 0 ? 'collecting' : 'idle';
 
     // Initialize Model and Classifier
+    const location = useLocation();
+    const { onRequestModel, sendModelData } = useClassroom();
+    const FEATURED_MODE = location.state?.featured;
+
+    // Initialize Model and Classifier
     useEffect(() => {
         async function init() {
             setIsModelLoading(true);
@@ -53,11 +60,77 @@ export default function SupervisedLab() {
             mobilenetRef.current = await loadMobileNet();
 
             // Create KNN Classifier
-            classifierRef.current = (knnClassifier as any).create();
+            const classifier = (knnClassifier as any).create();
+            classifierRef.current = classifier;
+
+            // Load Featured Data if available
+            if (FEATURED_MODE && location.state?.dataset) {
+                try {
+                    const dataset = location.state.dataset;
+                    const tensorDataset: { [label: string]: tf.Tensor2D } = {};
+
+                    Object.entries(dataset).forEach(([label, data]) => {
+                        tensorDataset[label] = tf.tensor(data as any);
+                    });
+
+                    classifier.setClassifierDataset(tensorDataset);
+
+                    if (location.state.thumbnails) {
+                        // Reconstruct classes from thumbnails and dataset keys
+                        // This is a bit tricky as we need to map id back to ClassInfo structure
+                        // For simplicity, we might just overwrite classes based on what we have
+                        // But we don't send full ClassInfo structure....
+                        // Let's assume standard class IDs '0', '1'... or just rely on what we sent.
+                        // Actually, we pass thumbnails map.
+
+                        const newClasses = classes.map(c => {
+                            if (location.state.thumbnails[c.id]) {
+                                const thumbs = location.state.thumbnails[c.id];
+                                return {
+                                    ...c,
+                                    count: tensorDataset[c.id] ? (tensorDataset[c.id].shape[0] || 0) : 0,
+                                    thumbnails: thumbs
+                                }
+                            }
+                            return c;
+                        });
+                        // Adjust counts at least
+                        Object.keys(tensorDataset).forEach(id => {
+                            const count = tensorDataset[id].shape[0];
+                            const cls = newClasses.find(c => c.id === id);
+                            if (cls) cls.count = count;
+                        });
+                        setClasses(newClasses);
+                        setIsModelTrained(true);
+                    }
+                } catch (e) {
+                    console.error("Failed to load featured model", e);
+                }
+            }
 
             setIsModelLoading(false);
         }
         init();
+
+        // Listen for teacher requests
+        onRequestModel(() => {
+            if (classifierRef.current && classifierRef.current.getNumClasses() > 0) {
+                const dataset = classifierRef.current.getClassifierDataset();
+                const serializableDataset: { [label: string]: any } = {};
+
+                Object.entries(dataset).forEach(([label, tensor]) => {
+                    serializableDataset[label] = tensor.arraySync();
+                });
+
+                // Prepare thumbnails map
+                const thumbnailsMap: { [id: string]: string[] } = {};
+                classes.forEach(c => {
+                    thumbnailsMap[c.id] = c.thumbnails;
+                });
+
+                sendModelData(thumbnailsMap, serializableDataset);
+            }
+        });
 
         return () => {
             // Cleanup

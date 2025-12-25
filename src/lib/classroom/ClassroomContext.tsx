@@ -30,6 +30,10 @@ interface ClassroomContextType extends ClassroomState {
     toggleAttention: (enabled: boolean) => void;
     kickStudent: (studentId: string) => void;
     updateStatus: (status: string, metrics?: Metrics) => void;
+    requestStudentModel: (studentId: string) => void;
+    sendModelData: (thumbnails: any, dataset: any) => void;
+    onFeaturedData: (callback: (data: any) => void) => void;
+    onRequestModel: (callback: () => void) => void;
     error: string | null;
 }
 
@@ -112,6 +116,34 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
+    // Event listeners
+    useEffect(() => {
+        if (!socket) return;
+
+        // These need to be mutable refs or managed outside if we want to change listeners dynamically
+        // But for global context, we can expose the socket or helper methods.
+    }, [socket]);
+
+    const requestStudentModel = (studentId: string) => {
+        socket?.emit('request_model', { studentId });
+    };
+
+    const sendModelData = (thumbnails: any, dataset: any) => {
+        socket?.emit('student_model_data', { thumbnails, dataset });
+    };
+
+    const onRequestModel = (callback: () => void) => {
+        if (!socket) return;
+        socket.off('request_model');
+        socket.on('request_model', callback);
+    };
+
+    const onFeaturedData = (callback: (data: any) => void) => {
+        if (!socket) return;
+        socket.off('student_featured_data');
+        socket.on('student_featured_data', callback);
+    };
+
     const createRoom = () => {
         socket?.emit('create_room');
     };
@@ -159,6 +191,10 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
             toggleAttention,
             kickStudent,
             updateStatus,
+            requestStudentModel,
+            sendModelData,
+            onRequestModel,
+            onFeaturedData,
             error
         }}>
             {children}

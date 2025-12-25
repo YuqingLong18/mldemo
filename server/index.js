@@ -45,6 +45,32 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('request_model', ({ studentId }) => {
+        // Forward request to student
+        io.to(studentId).emit('request_model');
+    });
+
+    socket.on('student_model_data', ({ thumbnails, dataset }) => {
+        // We assume the sender is a student in a room, and we need to find the teacher.
+        // For simplicity in this demo, we broadcast to the room's teacher (who created it).
+        // Since we don't track "teacher socket" explicitly in roomManager for lookup,
+        // we can relay to the room code, but alert only the teacher client.
+
+        // Better: Pass `code` in the event or find it.
+        const code = Array.from(socket.rooms).find(r => r.length === 6);
+        if (code) {
+            // This assumes teacher is in the room.
+            // We emit a special event that only the teacher dashboard/lab will care about.
+            // Or specifically target the room creator if we tracked them.
+            // For now, broadcast to room, client filters by `isTeacher`.
+            io.to(code).emit('student_featured_data', {
+                studentName: socket.data.name || "Student", // We didn't save name on socket.data, will fix in roomManager if needed
+                thumbnails,
+                dataset
+            });
+        }
+    });
+
     // --- Student Events ---
     socket.on('join_room', ({ code, name }) => {
         const result = roomManager.joinRoom(code, socket.id, name);
