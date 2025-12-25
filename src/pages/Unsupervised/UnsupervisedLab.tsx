@@ -12,6 +12,7 @@ interface DataPoint {
     x?: number; // PCA projected X
     y?: number; // PCA projected Y
     cluster?: number;
+    imageUrl?: string; // Captured image data URL
 }
 
 export default function UnsupervisedLab() {
@@ -21,6 +22,8 @@ export default function UnsupervisedLab() {
     const [points, setPoints] = useState<DataPoint[]>([]);
     const [k, setK] = useState(3);
     const [clusters, setClusters] = useState<{ centroid: number[], pointIds: string[] }[]>([]);
+    const [centroids, setCentroids] = useState<number[][] | null>(null); // For stateful K-Means
+    const [isConverged, setIsConverged] = useState(false);
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +104,24 @@ export default function UnsupervisedLab() {
         if (!mobilenetRef.current || !cameraRef.current?.video) return;
 
         try {
+            // Capture image as Data URL
+            let imageUrl: string | undefined;
+            if (cameraRef.current.video) {
+                const canvas = document.createElement('canvas');
+                canvas.width = cameraRef.current.video.videoWidth;
+                canvas.height = cameraRef.current.video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(cameraRef.current.video, 0, 0);
+                    imageUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    console.log("Captured Image URL, length:", imageUrl.length);
+                } else {
+                    console.error("Failed to get 2D context for capture");
+                }
+            } else {
+                console.error("Camera video element not found during capture");
+            }
+
             // Get embedding
             const embeddingTensor = getEmbedding(mobilenetRef.current, cameraRef.current.video);
             const embeddingSync = await embeddingTensor.array() as number[];
@@ -113,7 +134,8 @@ export default function UnsupervisedLab() {
 
             const newPoint: DataPoint = {
                 id: Date.now().toString(),
-                embedding: embeddingSync
+                embedding: embeddingSync,
+                imageUrl
             };
 
             setPoints(prev => [...prev, newPoint]);
@@ -129,15 +151,47 @@ export default function UnsupervisedLab() {
     const handleCluster = () => {
         if (points.length < k) return;
 
-        // Run K-Means
-        const kmPoints = points.map(p => ({ data: p.embedding, id: p.id }));
-        const result = kMeans(kmPoints, k);
-        setClusters(result);
+        // Run K-Means (Step-wise or full run?)
+        // To show "closing in to convergence", we can run for a few iterations at a time, or 1.
+        // Let's run 1 iteration per click if not converged? 
+        // Or run full 20 but use previous centroids (which mimics steps if we set iterations low).
+        // The user said "hit Run K-means multiple times".
+        // Let's maximize interactivity: Run 1 iteration per click.
+
+        // Use PROJECTED (2D) points for clustering to ensure visual consistency
+        // Filter out any points that don't have x/y yet (shouldn't happen if lengths match)
+        const kmPoints = projectedPoints
+            .filter(p => typeof p.x === 'number' && typeof p.y === 'number')
+            .map(p => ({
+                data: [p.x!, p.y!],
+                id: p.id
+            }));
+
+        if (kmPoints.length < k) {
+            console.warn("Not enough projected points for clustering");
+            return;
+        }
+
+        // Pass existing centroids if available
+        const result = kMeans(kmPoints, k, 1, centroids || undefined);
+
+        setClusters(result.clusters);
+        setCentroids(result.centroids);
+
+        if (result.converged) {
+            setIsConverged(true);
+        } else {
+            // Check if centroids really moved? kMeans now returns converged flag based on assignment change.
+            // If assignments didn't change, it's converged.
+            setIsConverged(result.converged);
+        }
     };
 
     const handleReset = () => {
         setPoints([]);
         setClusters([]);
+        setCentroids(null);
+        setIsConverged(false);
         setSelectedPointId(null);
     };
 
@@ -188,17 +242,22 @@ export default function UnsupervisedLab() {
                                 min={2}
                                 max={6}
                                 value={k}
-                                onChange={e => setK(Number(e.target.value))}
+                                onChange={e => {
+                                    setK(Number(e.target.value));
+                                    setCentroids(null);
+                                    setIsConverged(false);
+                                    setClusters([]);
+                                }}
                                 className="w-16 px-2 py-1 border border-slate-300 rounded focus:border-indigo-500 focus:outline-none"
                             />
                         </div>
                         <button
                             onClick={handleCluster}
-                            disabled={points.length < k}
+                            disabled={points.length < k || isConverged}
                             className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <Play className="w-4 h-4" />
-                            Run K-Means
+                            {isConverged ? 'Converged' : (centroids ? 'Step K-Means' : 'Run K-Means')}
                         </button>
                         <button
                             onClick={handleReset}
@@ -219,7 +278,7 @@ export default function UnsupervisedLab() {
                             <p>Capture images to see them mapped in 2D space.</p>
                         </div>
                     ) : (
-                        <div className="relative flex-1 min-h-[400px] border border-slate-100 rounded-lg bg-slate-50 overflow-hidden">
+                        <div className="relative flex-1 min-h-[400px] border border-slate-100 rounded-lg bg-slate-50">
                             {/* SVG Plot */}
                             <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                                 {projectedPoints.map((p) => {
@@ -256,7 +315,26 @@ export default function UnsupervisedLab() {
                             <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs">
                                 <p>Points: {points.length}</p>
                                 <p>Clusters: {clusters.length > 0 ? clusters.length : 'None'}</p>
+                                {isConverged && <p className="text-emerald-600 font-bold">Converged!</p>}
                             </div>
+
+                            {/* Image Preview Popup */}
+                            {selectedPointId && (
+                                <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-lg border border-slate-200 z-10 w-32 animate-in fade-in zoom-in duration-200">
+                                    {points.find(p => p.id === selectedPointId)?.imageUrl ? (
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider text-center">Selected</p>
+                                            <img
+                                                src={points.find(p => p.id === selectedPointId)?.imageUrl}
+                                                alt="Point Preview"
+                                                className="w-full h-auto rounded border border-slate-100"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 p-2 text-center">No image</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

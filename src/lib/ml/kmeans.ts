@@ -3,25 +3,47 @@ interface Point {
     id: string; // associate with original image ID
 }
 
-interface Cluster {
+export interface Cluster {
     centroid: number[];
     pointIds: string[];
 }
 
-export function kMeans(points: Point[], k: number, maxIters = 20): Cluster[] {
-    if (points.length === 0) return [];
+export interface KMeansResult {
+    clusters: Cluster[];
+    centroids: number[][]; // Return centroids for next iteration
+    converged: boolean;
+    iterations: number;
+}
+
+/**
+ * Runs K-Means clustering.
+ * @param points Data points
+ * @param k Number of clusters
+ * @param maxIters Maximum iterations per run. Set to 1 for "step-by-step" or higher for full run.
+ * @param initialCentroids Optional starting centroids. If provided, skips random init.
+ */
+export function kMeans(points: Point[], k: number, maxIters = 20, initialCentroids?: number[][]): KMeansResult {
+    if (points.length === 0) return { clusters: [], centroids: [], converged: false, iterations: 0 };
     if (k > points.length) k = points.length;
 
-    // 1. Initialize centroids (Pick k random points)
-    // Simple initialization: first k points or shuffle
-    // Let's shuffle
-    const shuffled = [...points].sort(() => 0.5 - Math.random());
-    let centroids = shuffled.slice(0, k).map(p => [...p.data]);
+    // 1. Initialize centroids
+    let centroids: number[][];
+    if (initialCentroids && initialCentroids.length === k) {
+        // Use provided centroids (deep copy to avoid mutation issues)
+        centroids = initialCentroids.map(c => [...c]);
+    } else {
+        // Random initialization
+        const shuffled = [...points].sort(() => 0.5 - Math.random());
+        centroids = shuffled.slice(0, k).map(p => [...p.data]);
+    }
 
     let assignments: number[] = new Array(points.length).fill(-1);
     let clusters: Cluster[] = [];
+    let converged = false;
+    let actualIters = 0;
 
     for (let iter = 0; iter < maxIters; iter++) {
+        actualIters++;
         let changed = false;
 
         // 2. Assign points to nearest centroid
@@ -63,12 +85,14 @@ export function kMeans(points: Point[], k: number, maxIters = 20): Cluster[] {
                     centroids[c][d] = newCentroids[c][d] / counts[c];
                 }
             } else {
-                // Handle empty cluster: re-init? or leave as is (orphaned)
-                // Simple: leave it (it won't capture any points unless moved, but here we just average)
+                // Handle empty cluster
             }
         }
 
-        if (!changed) break;
+        if (!changed) {
+            converged = true;
+            break;
+        }
     }
 
     // Build result
@@ -77,7 +101,12 @@ export function kMeans(points: Point[], k: number, maxIters = 20): Cluster[] {
         pointIds: points.filter((_, idx) => assignments[idx] === i).map(p => p.id)
     }));
 
-    return clusters;
+    return {
+        clusters,
+        centroids,
+        converged,
+        iterations: actualIters
+    };
 }
 
 function euclideanDistance(a: number[], b: number[]): number {
