@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom';
 import { Camera, Layers, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../lib/i18n';
 
 export default function Home() {
+    const { t } = useLanguage();
+
     return (
         <div className="space-y-8 max-w-4xl">
             <div className="space-y-4">
                 <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                    Learn Machine Learning interactively.
+                    {t('home.hero.title')}
                 </h1>
                 <p className="text-lg text-slate-600">
-                    Experience how computers learn to recognize objects using your webcam.
-                    All training happens right here in your browser—no data is sent to any server.
+                    {t('home.hero.subtitle')}
                 </p>
             </div>
 
@@ -27,13 +29,13 @@ export default function Home() {
                             <Camera className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-semibold text-slate-900">Supervised Learning</h3>
+                            <h3 className="text-xl font-semibold text-slate-900">{t('home.card.supervised.title')}</h3>
                             <p className="text-slate-500 mt-1">
-                                Teach the AI by providing examples. "This is an apple", "This is a banana".
+                                {t('home.card.supervised.desc')}
                             </p>
                         </div>
                         <div className="flex items-center text-indigo-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
-                            Start Supervised Lab <ArrowRight className="w-4 h-4 ml-1" />
+                            {t('home.start')} <ArrowRight className="w-4 h-4 ml-1" />
                         </div>
                     </div>
                 </Link>
@@ -50,13 +52,13 @@ export default function Home() {
                             <Layers className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-semibold text-slate-900">Unsupervised Learning</h3>
+                            <h3 className="text-xl font-semibold text-slate-900">{t('home.card.unsupervised.title')}</h3>
                             <p className="text-slate-500 mt-1">
-                                Let the AI find patterns on its own. It groups similar items together automatically.
+                                {t('home.card.unsupervised.desc')}
                             </p>
                         </div>
                         <div className="flex items-center text-emerald-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
-                            Start Unsupervised Lab <ArrowRight className="w-4 h-4 ml-1" />
+                            {t('home.start')} <ArrowRight className="w-4 h-4 ml-1" />
                         </div>
                     </div>
                 </Link>

@@ -6,26 +6,29 @@ import CameraView, { type CameraHandle } from '../../components/CameraView';
 import DatasetPanel from '../../components/DatasetPanel';
 import PredictionPanel from '../../components/PredictionPanel';
 import { Loader2 } from 'lucide-react';
+import { useLanguage } from '../../lib/i18n';
 
 // Define Class Data Structure
-interface ClassInfo {
+export interface ClassInfo {
     id: string; // '0', '1', etc. for KNN
     name: string;
     count: number;
     color: string;
+    thumbnails: string[]; // Store last N captured images
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function SupervisedLab() {
+    const { t } = useLanguage();
     const cameraRef = useRef<CameraHandle>(null);
     const classifierRef = useRef<knnClassifier.KNNClassifier | null>(null);
     const mobilenetRef = useRef<any>(null); // Keep reference to loaded mobilenet
 
     const [isModelLoading, setIsModelLoading] = useState(true);
     const [classes, setClasses] = useState<ClassInfo[]>([
-        { id: '0', name: 'Class A', count: 0, color: COLORS[0] },
-        { id: '1', name: 'Class B', count: 0, color: COLORS[1] },
+        { id: '0', name: 'Class A', count: 0, color: COLORS[0], thumbnails: [] },
+        { id: '1', name: 'Class B', count: 0, color: COLORS[1], thumbnails: [] },
     ]);
     const [predictions, setPredictions] = useState<{ label: string, confidence: number }[]>([]);
     const [isPredicting, setIsPredicting] = useState(false);
@@ -59,15 +62,44 @@ export default function SupervisedLab() {
 
         const video = cameraRef.current.video;
 
+        // Capture image validation
+        let imageUrl: string | undefined;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 224;
+            canvas.height = video.videoHeight || 224;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                // Draw resized image for thumbnail (smaller size for performance?)
+                // Actually canvas.toDataURL at standard size is fine for a few images
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                imageUrl = canvas.toDataURL('image/jpeg', 0.7);
+            }
+        } catch (e) {
+            console.error("Thumbnail capture failed", e);
+        }
+
         // Add example to KNN
         const embedding = getEmbedding(mobilenetRef.current, video);
         classifierRef.current.addExample(embedding, classId);
         embedding.dispose();
 
-        // Update count
-        setClasses(prev => prev.map(c =>
-            c.id === classId ? { ...c, count: c.count + 1 } : c
-        ));
+        // Update count and thumbnails without mutating state directly
+        setClasses(prev => prev.map(c => {
+            if (c.id === classId) {
+                // Keep last 5 thumbnails
+                const newThumbnails = imageUrl
+                    ? [...c.thumbnails, imageUrl].slice(-5)
+                    : c.thumbnails;
+
+                return {
+                    ...c,
+                    count: c.count + 1,
+                    thumbnails: newThumbnails
+                };
+            }
+            return c;
+        }));
 
         // Start predicting if not already
         if (!isPredicting) {
@@ -108,25 +140,26 @@ export default function SupervisedLab() {
         requestRef.current = requestAnimationFrame(predictLoop);
     };
 
-    useEffect(() => {
-        // Start loop if we have classes with examples? 
-        // Handled in handleCapture mostly, but if we resume...
-        // For now, handleCapture triggers state that keeps loop visual meaningful
-    }, []);
-
     // Class Management
     const addClass = () => {
         const newId = String(classes.length);
         const color = COLORS[classes.length % COLORS.length];
-        setClasses([...classes, { id: newId, name: `Class ${String.fromCharCode(65 + classes.length)}`, count: 0, color }]);
+        setClasses([...classes, {
+            id: newId,
+            name: `Class ${String.fromCharCode(65 + classes.length)}`,
+            count: 0,
+            color,
+            thumbnails: []
+        }]);
     };
 
     const removeClass = (id: string) => {
         if (classifierRef.current) {
-            classifierRef.current.clearClass(id); // TFJS KNN clearClass takes label indices?
-            // Actually clearClass(label) clears examples for that label.
-            // But removing from UI means we also need to handle ID re-assignment or holes.
-            // For MVP, just allow removing and keeping existing IDs is fine (holes in IDs are allowed in string labels).
+            try {
+                classifierRef.current.clearClass(id);
+            } catch (e) {
+                console.warn("Error clearing class", e);
+            }
         }
         setClasses(classes.filter(c => c.id !== id));
     };
@@ -134,11 +167,11 @@ export default function SupervisedLab() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-slate-900">Supervised Learning Lab</h1>
+                <h1 className="text-2xl font-bold text-slate-900">{t('supervised.title')}</h1>
                 {isModelLoading && (
                     <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full text-sm font-medium">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading MobileNet...
+                        {t('supervised.loading')}
                     </div>
                 )}
             </div>
@@ -150,8 +183,7 @@ export default function SupervisedLab() {
                         <CameraView ref={cameraRef} />
                     </div>
                     <div className="p-4 bg-indigo-50 text-indigo-900 rounded-lg text-sm border border-indigo-100">
-                        <strong className="font-semibold">Instructions:</strong> Select a class on the right and hold "Add Example" to capture images.
-                        Teach the model to recognize difference objects (e.g. your face vs your hand).
+                        <strong className="font-semibold">{t('supervised.instructions.title')}</strong> {t('supervised.instructions.text')}
                     </div>
                 </div>
 

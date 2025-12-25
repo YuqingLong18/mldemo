@@ -1,8 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Camera, Brain, Layers, Info } from 'lucide-react';
+import { Camera, Brain, Layers, Info, Globe } from 'lucide-react';
 import clsx from 'clsx';
+import { useLanguage } from '../lib/i18n';
 
 export default function Layout() {
+    const { t, language, setLanguage } = useLanguage();
+
+    const toggleLanguage = () => {
+        setLanguage(language === 'zh' ? 'en' : 'zh');
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex">
             {/* Sidebar Navigation */}
@@ -24,7 +31,7 @@ export default function Layout() {
                         )}
                     >
                         <Info className="w-5 h-5" />
-                        <span>Home</span>
+                        <span>{t('nav.home')}</span>
                     </NavLink>
 
                     <NavLink
@@ -35,7 +42,7 @@ export default function Layout() {
                         )}
                     >
                         <Camera className="w-5 h-5" />
-                        <span>Supervised Lab</span>
+                        <span>{t('nav.supervised')}</span>
                     </NavLink>
 
                     <NavLink
@@ -46,13 +53,29 @@ export default function Layout() {
                         )}
                     >
                         <Layers className="w-5 h-5" />
-                        <span>Unsupervised Lab</span>
+                        <span>{t('nav.unsupervised')}</span>
                     </NavLink>
                 </nav>
 
-                <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
-                    <p>Running locally in browser.</p>
-                    <p>No data uploaded.</p>
+                <div className="p-4 border-t border-slate-800 space-y-4">
+                    {/* Language Toggle */}
+                    <button
+                        onClick={toggleLanguage}
+                        className="w-full flex items-center justify-between px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm text-slate-200 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4" />
+                            <span>{language === 'zh' ? '中文' : 'English'}</span>
+                        </div>
+                        <span className="text-xs text-slate-500 font-mono">
+                            {language === 'zh' ? 'CN' : 'EN'}
+                        </span>
+                    </button>
+
+                    <div className="text-xs text-slate-500">
+                        <p>Running locally in browser.</p>
+                        <p>No data uploaded.</p>
+                    </div>
                 </div>
             </aside>
 

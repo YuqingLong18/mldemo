@@ -1,0 +1,95 @@
+import { createContext, useContext, useState, type ReactNode } from 'react';
+
+type Language = 'zh' | 'en';
+
+interface Translations {
+    [key: string]: {
+        zh: string;
+        en: string;
+    };
+}
+
+const translations: Translations = {
+    // Navigation & Common
+    'nav.supervised': { zh: '监督学习', en: 'Supervised Learning' },
+    'nav.unsupervised': { zh: '无监督学习', en: 'Unsupervised Learning' },
+    'nav.home': { zh: '首页', en: 'Home' },
+    'footer.credits': { zh: '基于 TensorFlow.js 构建', en: 'Built with TensorFlow.js' },
+
+    // Unsupervised Lab
+    'unsupervised.title': { zh: '无监督学习实验室', en: 'Unsupervised Learning Lab' },
+    'unsupervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
+    'unsupervised.capture': { zh: '采集样本', en: 'Capture Example' },
+    'unsupervised.clustering_controls': { zh: '聚类控制', en: 'Clustering Controls' },
+    'unsupervised.clusters_k': { zh: '聚类数量 (K):', en: 'Clusters (K):' },
+    'unsupervised.run_kmeans': { zh: '运行 K-Means', en: 'Run K-Means' },
+    'unsupervised.step_kmeans': { zh: 'K-Means 单步迭代', en: 'Step K-Means' },
+    'unsupervised.converged': { zh: '已收敛', en: 'Converged' },
+    'unsupervised.reset': { zh: '重置所有', en: 'Reset All' },
+    'unsupervised.embedding_space': { zh: '嵌入空间 (PCA 投影)', en: 'Embedding Space (PCA Projection)' },
+    'unsupervised.empty_state': { zh: '采集图像以在 2D 空间中查看映射。', en: 'Capture images to see them mapped in 2D space.' },
+    'unsupervised.selected': { zh: '已选中', en: 'Selected' },
+    'unsupervised.no_image': { zh: '无图像', en: 'No image' },
+    'unsupervised.points': { zh: '数据点', en: 'Points' },
+    'unsupervised.clusters': { zh: '聚类', en: 'Clusters' },
+
+    // Supervised Lab
+    'supervised.title': { zh: '监督学习实验室', en: 'Supervised Learning Lab' },
+    'supervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
+    'supervised.instructions.title': { zh: '操作说明:', en: 'Instructions:' },
+    'supervised.instructions.text': {
+        zh: '在右侧选择一个类别，长按“采集样本”按钮来录制图像。教模型识别不同的物体（例如：您的脸 vs 您的手）。',
+        en: 'Select a class on the right and hold "Add Example" to capture images. Teach the model to recognize different objects (e.g. your face vs your hand).'
+    },
+    'supervised.dataset.title': { zh: '数据集', en: 'Dataset' },
+    'supervised.dataset.total': { zh: '总样本数:', en: 'Total examples:' },
+    'supervised.dataset.add_class': { zh: '添加类别', en: 'Add Class' },
+    'supervised.class.add_example': { zh: '采集样本', en: 'Add Example' },
+    'supervised.class.samples': { zh: '样本', en: 'samples' },
+    'supervised.prediction.title': { zh: '实时预测', en: 'Real-time Prediction' },
+    'supervised.prediction.confidence': { zh: '置信度', en: 'Confidence' },
+    'supervised.prediction.waiting': { zh: '等待预测...', en: 'Waiting for prediction...' },
+    'supervised.prediction.no_model': { zh: '模型尚未训练', en: 'Model not trained' },
+
+    // Home
+    'home.hero.title': { zh: '在浏览器中探索机器学习', en: 'Explore Machine Learning in Your Browser' },
+    'home.hero.subtitle': { zh: '无需安装，完全隐私。使用您的摄像头实时训练模型。', en: 'No installation, completely private. Train models in real-time using your webcam.' },
+    'home.card.supervised.title': { zh: '监督学习', en: 'Supervised Learning' },
+    'home.card.supervised.desc': { zh: '教机器识别物体。采集样本，训练分类器，并进行实时预测。', en: 'Teach the machine to recognize objects. Collect examples, train a classifier, and make real-time predictions.' },
+    'home.card.unsupervised.title': { zh: '无监督学习', en: 'Unsupervised Learning' },
+    'home.card.unsupervised.desc': { zh: '探索数据中的隐藏模式。使用 K-Means 算法对摄像头图像进行聚类。', en: 'Discover patterns in data. Cluster webcam images using the K-Means algorithm.' },
+    'home.start': { zh: '开始使用', en: 'Get Started' },
+};
+
+interface LanguageContextType {
+    language: Language;
+    setLanguage: (lang: Language) => void;
+    t: (key: string) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+    // Default to Chinese ('zh')
+    const [language, setLanguage] = useState<Language>('zh');
+
+    const t = (key: string) => {
+        const item = translations[key];
+        if (!item) return key; // Fallback to key if missing
+        return item[language];
+    };
+
+    return (
+        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+            {children}
+        </LanguageContext.Provider>
+    );
+}
+
+export function useLanguage() {
+    const context = useContext(LanguageContext);
+    if (!context) {
+        throw new Error('useLanguage must be used within a LanguageProvider');
+    }
+    return context;
+}

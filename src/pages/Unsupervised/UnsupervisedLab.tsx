@@ -5,6 +5,7 @@ import { kMeans } from '../../lib/ml/kmeans';
 import { computePCA } from '../../lib/ml/pca';
 import CameraView, { type CameraHandle } from '../../components/CameraView';
 import { Loader2, Camera, Play, RefreshCw } from 'lucide-react';
+import { useLanguage } from '../../lib/i18n';
 
 interface DataPoint {
     id: string;
@@ -16,6 +17,7 @@ interface DataPoint {
 }
 
 export default function UnsupervisedLab() {
+    const { t } = useLanguage();
     const cameraRef = useRef<CameraHandle>(null);
     const mobilenetRef = useRef<any>(null);
     const [isModelLoading, setIsModelLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function UnsupervisedLab() {
                 setError(null);
             } catch (err) {
                 console.error("Model load error:", err);
-                setError("Failed to load MobileNet model.");
+                setError(t('unsupervised.loading_error') || "Failed to load MobileNet model.");
             } finally {
                 setIsModelLoading(false);
             }
@@ -204,11 +206,11 @@ export default function UnsupervisedLab() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-slate-900">Unsupervised Learning Lab</h1>
+                <h1 className="text-2xl font-bold text-slate-900">{t('unsupervised.title')}</h1>
                 {isModelLoading && (
                     <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full text-sm font-medium">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading MobileNet...
+                        {t('unsupervised.loading')}
                     </div>
                 )}
                 {error && (
@@ -230,13 +232,13 @@ export default function UnsupervisedLab() {
                         className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <Camera className="w-5 h-5" />
-                        Capture Example ({points.length})
+                        {t('unsupervised.capture')} ({points.length})
                     </button>
 
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                        <h3 className="font-semibold text-slate-900">Clustering Controls</h3>
+                        <h3 className="font-semibold text-slate-900">{t('unsupervised.clustering_controls')}</h3>
                         <div className="flex items-center gap-4">
-                            <label className="text-sm font-medium text-slate-700">Clusters (K):</label>
+                            <label className="text-sm font-medium text-slate-700">{t('unsupervised.clusters_k')}</label>
                             <input
                                 type="number"
                                 min={2}
@@ -257,25 +259,25 @@ export default function UnsupervisedLab() {
                             className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <Play className="w-4 h-4" />
-                            {isConverged ? 'Converged' : (centroids ? 'Step K-Means' : 'Run K-Means')}
+                            {isConverged ? t('unsupervised.converged') : (centroids ? t('unsupervised.step_kmeans') : t('unsupervised.run_kmeans'))}
                         </button>
                         <button
                             onClick={handleReset}
                             className="w-full py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            Reset All
+                            {t('unsupervised.reset')}
                         </button>
                     </div>
                 </div>
 
                 {/* Right: Visualization */}
                 <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col">
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Embedding Space (PCA Projection)</h2>
+                    <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('unsupervised.embedding_space')}</h2>
 
                     {points.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 min-h-[400px]">
-                            <p>Capture images to see them mapped in 2D space.</p>
+                            <p>{t('unsupervised.empty_state')}</p>
                         </div>
                     ) : (
                         <div className="relative flex-1 min-h-[400px] border border-slate-100 rounded-lg bg-slate-50">
@@ -313,9 +315,9 @@ export default function UnsupervisedLab() {
                             </svg>
 
                             <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs">
-                                <p>Points: {points.length}</p>
-                                <p>Clusters: {clusters.length > 0 ? clusters.length : 'None'}</p>
-                                {isConverged && <p className="text-emerald-600 font-bold">Converged!</p>}
+                                <p>{t('unsupervised.points')}: {points.length}</p>
+                                <p>{t('unsupervised.clusters')}: {clusters.length > 0 ? clusters.length : 'None'}</p>
+                                {isConverged && <p className="text-emerald-600 font-bold">{t('unsupervised.converged')}!</p>}
                             </div>
 
                             {/* Image Preview Popup */}
@@ -323,7 +325,7 @@ export default function UnsupervisedLab() {
                                 <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-lg border border-slate-200 z-10 w-32 animate-in fade-in zoom-in duration-200">
                                     {points.find(p => p.id === selectedPointId)?.imageUrl ? (
                                         <div className="space-y-1">
-                                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider text-center">Selected</p>
+                                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider text-center">{t('unsupervised.selected')}</p>
                                             <img
                                                 src={points.find(p => p.id === selectedPointId)?.imageUrl}
                                                 alt="Point Preview"
@@ -331,7 +333,7 @@ export default function UnsupervisedLab() {
                                             />
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-slate-400 p-2 text-center">No image</p>
+                                        <p className="text-xs text-slate-400 p-2 text-center">{t('unsupervised.no_image')}</p>
                                     )}
                                 </div>
                             )}
