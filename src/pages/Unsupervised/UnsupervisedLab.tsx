@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
 import { loadMobileNet, getEmbedding } from '../../lib/ml/mobilenet';
 import { kMeans } from '../../lib/ml/kmeans';
+import { computePCA } from '../../lib/ml/pca';
 import CameraView, { type CameraHandle } from '../../components/CameraView';
 import { Loader2, Camera, Play, RefreshCw } from 'lucide-react';
-import PCA from 'pca-js';
 
 interface DataPoint {
     id: string;
@@ -22,68 +22,108 @@ export default function UnsupervisedLab() {
     const [k, setK] = useState(3);
     const [clusters, setClusters] = useState<{ centroid: number[], pointIds: string[] }[]>([]);
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     // Load Model
     useEffect(() => {
         async function init() {
-            setIsModelLoading(true);
-            await tf.ready();
-            mobilenetRef.current = await loadMobileNet();
-            setIsModelLoading(false);
+            try {
+                setIsModelLoading(true);
+                await tf.ready();
+                mobilenetRef.current = await loadMobileNet();
+                setError(null);
+            } catch (err) {
+                console.error("Model load error:", err);
+                setError("Failed to load MobileNet model.");
+            } finally {
+                setIsModelLoading(false);
+            }
         }
         init();
     }, []);
 
     // Compute PCA when points change
-    const projectedPoints = useMemo(() => {
-        if (points.length < 2) return points;
+    const [projectedPoints, setProjectedPoints] = useState<DataPoint[]>([]);
 
-        try {
-            // Extract data matrix
-            const data = points.map(p => p.embedding);
-            // PCA
-            const vectors = PCA.getEigenVectors(data);
-            if (vectors.length < 2) return points; // Not enough variance
-
-            const ad1 = PCA.computeAdjustedData(data, vectors[0]).adjustedData[0];
-            const ad2 = PCA.computeAdjustedData(data, vectors[1]).adjustedData[0];
-
-            // Normalize to 0-1 range for plotting
-            const minX = Math.min(...ad1);
-            const maxX = Math.max(...ad1);
-            const minY = Math.min(...ad2);
-            const maxY = Math.max(...ad2);
-
-            const rangeX = maxX - minX || 1;
-            const rangeY = maxY - minY || 1;
-
-            return points.map((p, i) => ({
-                ...p,
-                x: (ad1[i] - minX) / rangeX,
-                y: (ad2[i] - minY) / rangeY
-            }));
-        } catch (e) {
-            console.error("PCA error", e);
-            return points;
+    useEffect(() => {
+        if (points.length === 0) {
+            setProjectedPoints([]);
+            return;
         }
+
+        const runPCA = async () => {
+            // PCA needs at least 3 points to be stable
+            if (points.length < 3) {
+                setProjectedPoints(points.map(p => ({ ...p, x: 0.5, y: 0.5 })));
+                return;
+            }
+
+            try {
+                setError(null);
+                console.log("Starting PCA with", points.length, "points");
+                console.time("PCA_Computation");
+
+                const embeddings = points.map(p => p.embedding);
+                const reduced = await computePCA(embeddings);
+
+                console.timeEnd("PCA_Computation");
+
+                // Normalize 2D points to 0-1 for visualization
+                const xs = reduced.map(r => r[0]);
+                const ys = reduced.map(r => r[1]);
+
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+
+                const rangeX = maxX - minX || 1;
+                const rangeY = maxY - minY || 1;
+
+                const newPoints = points.map((p, i) => ({
+                    ...p,
+                    x: (xs[i] - minX) / rangeX,
+                    y: (ys[i] - minY) / rangeY
+                }));
+                setProjectedPoints(newPoints);
+            } catch (err: any) {
+                console.error("PCA failed", err);
+                setError(`PCA Calculation Failed: ${err.message}`);
+                // Fallback: Keep centered stacked
+                setProjectedPoints(points.map(p => ({ ...p, x: 0.5, y: 0.5 })));
+            }
+        };
+
+        runPCA();
     }, [points]);
 
     const handleCapture = async () => {
         if (!mobilenetRef.current || !cameraRef.current?.video) return;
 
-        // Get embedding
-        const embeddingTensor = getEmbedding(mobilenetRef.current, cameraRef.current.video);
-        const embeddingSync = await embeddingTensor.array() as number[];
-        embeddingTensor.dispose();
+        try {
+            // Get embedding
+            const embeddingTensor = getEmbedding(mobilenetRef.current, cameraRef.current.video);
+            const embeddingSync = await embeddingTensor.array() as number[];
+            embeddingTensor.dispose();
 
-        const newPoint: DataPoint = {
-            id: Date.now().toString(),
-            embedding: embeddingSync
-        };
+            // Sanity Check for NaNs
+            if (embeddingSync.some(n => isNaN(n) || !isFinite(n))) {
+                throw new Error("Captured embedding contains invalid numbers (NaN/Infinity).");
+            }
 
-        setPoints(prev => [...prev, newPoint]);
-        // Clear clusters when new data added
-        setClusters([]);
+            const newPoint: DataPoint = {
+                id: Date.now().toString(),
+                embedding: embeddingSync
+            };
+
+            setPoints(prev => [...prev, newPoint]);
+            // Clear clusters when new data added
+            setClusters([]);
+            setError(null);
+        } catch (err: any) {
+            console.error("Capture failed", err);
+            setError(`Capture Failed: ${err.message}`);
+        }
     };
 
     const handleCluster = () => {
@@ -115,6 +155,11 @@ export default function UnsupervisedLab() {
                     <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full text-sm font-medium">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Loading MobileNet...
+                    </div>
+                )}
+                {error && (
+                    <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1 rounded-full text-sm font-medium border border-red-200">
+                        {error}
                     </div>
                 )}
             </div>
