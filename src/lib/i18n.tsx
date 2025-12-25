@@ -32,6 +32,13 @@ const translations: Translations = {
     'unsupervised.no_image': { zh: '无图像', en: 'No image' },
     'unsupervised.points': { zh: '数据点', en: 'Points' },
     'unsupervised.clusters': { zh: '聚类', en: 'Clusters' },
+    'unsupervised.tab.webcam': { zh: '自己试试', en: 'Try it yourself' },
+    'unsupervised.tab.iris': { zh: '鸢尾花 (Iris) K-Means', en: 'Iris K-Means' },
+    'unsupervised.iris.show_labels': { zh: '显示真实类别', en: 'Show True Labels' },
+    'unsupervised.iris.hide_labels': { zh: '隐藏真实类别', en: 'Hide True Labels' },
+    'unsupervised.iris.compare_tip': { zh: '对比聚类结果和真实类别，看看算法表现如何！', en: 'Compare clusters with true species to see how well the algorithm performed!' },
+    'unsupervised.iris.true_species': { zh: '真实鸢尾花类别', en: 'True Iris Species' },
+    'unsupervised.iris.cluster_assignments': { zh: 'K-Means 聚类结果', en: 'K-Means Cluster Assignments' },
 
     // Supervised Lab
     'supervised.title': { zh: '监督学习实验室', en: 'Supervised Learning Lab' },
