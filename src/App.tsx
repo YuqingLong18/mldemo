@@ -10,17 +10,24 @@ import UnsupervisedLab from './pages/Unsupervised/UnsupervisedLab';
 
 import { ClassroomProvider } from './lib/classroom/ClassroomContext';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
+import StudentLogin from './pages/StudentLogin';
+import TeacherLogin from './pages/Teacher/TeacherLogin';
 
 function App() {
   return (
     <ClassroomProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<StudentLogin />} />
+          <Route path="/teacher/login" element={<TeacherLogin />} />
+
+          {/* Protected/App Routes (Wrapped in Layout) */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
+            <Route path="home" element={<Home />} />
             <Route path="supervised" element={<SupervisedLab />} />
             <Route path="unsupervised" element={<UnsupervisedLab />} />
-            <Route path="teacher" element={<TeacherDashboard />} />
+            <Route path="teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

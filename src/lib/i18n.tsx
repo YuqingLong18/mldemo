@@ -16,6 +16,23 @@ const translations: Translations = {
     'nav.home': { zh: '首页', en: 'Home' },
     'footer.credits': { zh: '基于 TensorFlow.js 构建', en: 'Built with TensorFlow.js' },
 
+    // Auth - Teacher
+    'teacher.login_title': { zh: '教师登录', en: 'Teacher Login' },
+    'teacher.login_subtitle': { zh: '输入凭据以管理课堂。', en: 'Enter your credentials to manage the classroom.' },
+    'teacher.username': { zh: '用户名', en: 'Username' },
+    'teacher.password': { zh: '密码', en: 'Password' },
+    'teacher.login_btn': { zh: '登录', en: 'Login' },
+    'teacher.login_error': { zh: '凭据无效，请重试。', en: 'Invalid credentials. Please try again.' },
+
+    // Auth - Student
+    'student.login_title': { zh: '加入课堂', en: 'Join Classroom' },
+    'student.login_subtitle': { zh: '输入房间代码和您的名字以加入。', en: 'Enter the room code and your name to join.' },
+    'student.code': { zh: '房间代码', en: 'Room Code' },
+    'student.nickname': { zh: '昵称', en: 'Nickname' },
+    'student.join_btn': { zh: '加入课堂', en: 'Join Class' },
+    'student.iam_teacher': { zh: '我是老师', en: 'I am a Teacher' },
+    'student.code_error': { zh: '代码格式无效或名字为空。', en: 'Invalid code format or empty name.' },
+
     // Unsupervised Lab
     'unsupervised.title': { zh: '无监督学习实验室', en: 'Unsupervised Learning Lab' },
     'unsupervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
@@ -42,7 +59,7 @@ const translations: Translations = {
 
     // Supervised Lab
     'supervised.title': { zh: '监督学习实验室', en: 'Supervised Learning Lab' },
-    'supervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
+    'supervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...', },
     'supervised.instructions.title': { zh: '操作说明:', en: 'Instructions:' },
     'supervised.instructions.text': {
         zh: '在右侧选择一个类别，点击“采集样本”按钮来捕捉图像。教模型识别不同的物体，例如脸部、手、本子、水瓶等。',
