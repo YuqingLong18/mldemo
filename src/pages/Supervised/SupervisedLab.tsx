@@ -164,6 +164,12 @@ export default function SupervisedLab() {
         setClasses(classes.filter(c => c.id !== id));
     };
 
+    const handleClassNameChange = (id: string, newName: string) => {
+        setClasses(prev => prev.map(c =>
+            c.id === id ? { ...c, name: newName } : c
+        ));
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -177,17 +183,24 @@ export default function SupervisedLab() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Camera */}
+                {/* Left Column: Camera & Prediction */}
                 <div className="lg:col-span-2 space-y-4">
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-center">
                         <CameraView ref={cameraRef} />
                     </div>
+
+                    <PredictionPanel
+                        predictions={predictions}
+                        classes={classes}
+                        isPredicting={isPredicting}
+                    />
+
                     <div className="p-4 bg-indigo-50 text-indigo-900 rounded-lg text-sm border border-indigo-100">
                         <strong className="font-semibold">{t('supervised.instructions.title')}</strong> {t('supervised.instructions.text')}
                     </div>
                 </div>
 
-                {/* Right Column: Controls & Results */}
+                {/* Right Column: Controls */}
                 <div className="space-y-6">
                     <DatasetPanel
                         classes={classes}
@@ -195,13 +208,8 @@ export default function SupervisedLab() {
                         onAddClass={addClass}
                         onRemoveClass={removeClass}
                         onCapture={handleCapture}
+                        onClassNameChange={handleClassNameChange}
                         isModelReady={!isModelLoading}
-                    />
-
-                    <PredictionPanel
-                        predictions={predictions}
-                        classes={classes}
-                        isPredicting={isPredicting}
                     />
                 </div>
             </div>

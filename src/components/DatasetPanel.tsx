@@ -9,6 +9,7 @@ interface DatasetPanelProps {
     onAddClass: () => void;
     onRemoveClass: (id: string) => void;
     onCapture: (id: string) => void;
+    onClassNameChange: (id: string, newName: string) => void;
     isModelReady: boolean;
 }
 
@@ -17,6 +18,7 @@ export default function DatasetPanel({
     onAddClass,
     onRemoveClass,
     onCapture,
+    onClassNameChange,
     isModelReady
 }: DatasetPanelProps) {
     const { t } = useLanguage();
@@ -49,8 +51,13 @@ export default function DatasetPanel({
                                     className="w-3 h-3 rounded-full"
                                     style={{ backgroundColor: c.color }}
                                 />
-                                <span className="font-medium text-slate-900">{c.name}</span>
-                                <span className="text-xs text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                <input
+                                    type="text"
+                                    value={c.name}
+                                    onChange={(e) => onClassNameChange(c.id, e.target.value)}
+                                    className="bg-transparent font-medium text-slate-900 focus:outline-none focus:border-b border-indigo-500 w-32 px-1 hover:bg-slate-100 rounded transition-colors"
+                                />
+                                <span className="text-xs text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
                                     {c.count} {t('supervised.class.samples')}
                                 </span>
                             </div>
