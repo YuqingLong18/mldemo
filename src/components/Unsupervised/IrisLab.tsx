@@ -4,6 +4,7 @@ import { useLanguage } from '../../lib/i18n';
 import { irisDataset } from '../../lib/datasets/iris';
 import { kMeans, type Cluster } from '../../lib/ml/kmeans';
 import clsx from 'clsx';
+import StudentStatusIndicator from '../Classroom/StudentStatusIndicator';
 
 export default function IrisLab() {
     const { t } = useLanguage();
@@ -25,6 +26,9 @@ export default function IrisLab() {
             species: d.species
         }));
     }, []);
+
+    // Metrics for classroom
+    const currentStatus = clusters.length > 0 ? 'clustering' : 'idle';
 
     const handleCluster = () => {
         // Run one step of K-Means
@@ -70,6 +74,11 @@ export default function IrisLab() {
 
     return (
         <div className="space-y-6">
+            <StudentStatusIndicator
+                status={currentStatus}
+                metrics={{ samples: 150, k, converged: isConverged }}
+            />
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left: Controls */}
                 <div className="space-y-4">

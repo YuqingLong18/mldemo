@@ -7,6 +7,7 @@ import DatasetPanel from '../../components/DatasetPanel';
 import PredictionPanel from '../../components/PredictionPanel';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
+import StudentStatusIndicator from '../../components/Classroom/StudentStatusIndicator';
 
 // Define Class Data Structure
 export interface ClassInfo {
@@ -35,6 +36,12 @@ export default function SupervisedLab() {
     const [isTraining, setIsTraining] = useState(false);
     const [isModelTrained, setIsModelTrained] = useState(false);
     const requestRef = useRef<number | undefined>(undefined);
+
+    // Calculate metrics for classroom
+    const totalSamples = classes.reduce((sum, c) => sum + c.count, 0);
+    const currentStatus = isTraining ? 'training' :
+        isPredicting ? 'predicting' :
+            totalSamples > 0 ? 'collecting' : 'idle';
 
     // Initialize Model and Classifier
     useEffect(() => {
@@ -213,6 +220,10 @@ export default function SupervisedLab() {
 
     return (
         <div className="space-y-6">
+            <StudentStatusIndicator
+                status={currentStatus}
+                metrics={{ samples: totalSamples, accuracy: isModelTrained ? 1.0 : 0 }}
+            />
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-slate-900">{t('supervised.title')}</h1>
                 {isModelLoading && (

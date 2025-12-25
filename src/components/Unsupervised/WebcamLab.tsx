@@ -6,6 +6,7 @@ import { computePCA } from '../../lib/ml/pca';
 import CameraView, { type CameraHandle } from '../CameraView';
 import { Loader2, Camera, Play, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
+import StudentStatusIndicator from '../Classroom/StudentStatusIndicator';
 
 interface DataPoint {
     id: string;
@@ -203,8 +204,17 @@ export default function WebcamLab() {
         return colors[clusterIndex % colors.length];
     };
 
+    // Metrics for classroom
+    const currentStatus = clusters.length > 0 ? 'clustering' :
+        points.length > 0 ? 'collecting' : 'idle';
+
     return (
         <div className="space-y-6">
+            <StudentStatusIndicator
+                status={currentStatus}
+                metrics={{ samples: points.length, k, converged: isConverged }}
+            />
+
             <div className="flex items-center justify-between">
                 {isModelLoading && (
                     <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full text-sm font-medium">

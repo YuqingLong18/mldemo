@@ -1,0 +1,197 @@
+import { useState } from 'react';
+import { useClassroom } from '../../lib/classroom/ClassroomContext';
+import { Users, Eye, EyeOff, Activity, LogOut, Trash2 } from 'lucide-react';
+import clsx from 'clsx';
+import LoginPlaceholder from './LoginPlaceholder';
+
+export default function TeacherDashboard() {
+    const {
+        createRoom,
+        code,
+        students,
+        attentionMode,
+        toggleAttention,
+        kickStudent,
+        leaveRoom
+    } = useClassroom();
+
+    // Placeholder auth state
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
+
+    if (!isAuthenticated) {
+        return <LoginPlaceholder onLogin={() => setIsAuthenticated(true)} />;
+    }
+
+    if (!code) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+                <div className="text-center space-y-2">
+                    <h1 className="text-3xl font-bold text-slate-900">Teacher Dashboard</h1>
+                    <p className="text-slate-500">Create a classroom session to get started.</p>
+                </div>
+                <button
+                    onClick={createRoom}
+                    className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3"
+                >
+                    <Users className="w-6 h-6" />
+                    Create Classroom
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6 max-w-6xl mx-auto">
+            {/* Header / Room Info */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="text-center md:text-left">
+                    <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Classroom Code</h2>
+                    <div className="text-5xl font-mono font-bold text-indigo-600 tracking-widest my-2 select-all cursor-pointer" title="Click to copy">
+                        {code}
+                    </div>
+                    <p className="text-sm text-slate-600 flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        {students.length} Students Joined
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => toggleAttention(!attentionMode)}
+                        className={clsx(
+                            "px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all",
+                            attentionMode
+                                ? "bg-red-500 text-white hover:bg-red-600 shadow-md ring-2 ring-red-200"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        )}
+                    >
+                        {attentionMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                        {attentionMode ? "ATTENTION MODE ON" : "Turn On Attention Mode"}
+                    </button>
+
+                    <button
+                        onClick={leaveRoom}
+                        className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="End Session"
+                    >
+                        <LogOut className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex space-x-1 rounded-xl bg-slate-100 p-1 w-full md:w-fit">
+                <button
+                    onClick={() => setActiveTab('roster')}
+                    className={clsx(
+                        'flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-lg transition-all',
+                        activeTab === 'roster'
+                            ? 'bg-white text-indigo-700 shadow ring-1 ring-black/5'
+                            : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
+                    )}
+                >
+                    <Users className="w-4 h-4" />
+                    Roster
+                </button>
+                <button
+                    onClick={() => setActiveTab('monitoring')}
+                    className={clsx(
+                        'flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-lg transition-all',
+                        activeTab === 'monitoring'
+                            ? 'bg-white text-indigo-700 shadow ring-1 ring-black/5'
+                            : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
+                    )}
+                >
+                    <Activity className="w-4 h-4" />
+                    Monitoring
+                </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[400px] overflow-hidden">
+                {activeTab === 'roster' && (
+                    <div className="divide-y divide-slate-100">
+                        {students.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                <Users className="w-12 h-12 mb-4 opacity-20" />
+                                <p>Waiting for students to join with code <span className="font-mono font-bold text-slate-600">{code}</span>...</p>
+                            </div>
+                        ) : (
+                            students.map(student => (
+                                <div key={student.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+                                            {student.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-slate-900">{student.name}</h3>
+                                            <span className={clsx(
+                                                "text-xs px-2 py-0.5 rounded-full font-medium inline-block mt-1",
+                                                student.status === 'idle' && "bg-slate-100 text-slate-600",
+                                                student.status === 'collecting' && "bg-blue-100 text-blue-700",
+                                                student.status === 'training' && "bg-amber-100 text-amber-700",
+                                                student.status === 'predicting' && "bg-emerald-100 text-emerald-700"
+                                            )}>
+                                                {student.status.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => kickStudent(student.id)}
+                                        className="text-slate-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition-colors"
+                                        title="Kick Student"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'monitoring' && (
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {students.map(student => (
+                            <div key={student.id} className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-white">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-bold text-slate-900">{student.name}</h3>
+                                    <span className={clsx(
+                                        "w-2 h-2 rounded-full",
+                                        student.metrics?.converged || student.metrics?.accuracy ? "bg-emerald-500" : "bg-slate-300"
+                                    )} />
+                                </div>
+
+                                <div className="space-y-2 text-sm text-slate-600">
+                                    <div className="flex justify-between">
+                                        <span>Status:</span>
+                                        <span className="font-medium text-slate-900 capitalize">{student.status}</span>
+                                    </div>
+                                    {student.metrics?.samples !== undefined && (
+                                        <div className="flex justify-between">
+                                            <span>Samples:</span>
+                                            <span className="font-medium">{student.metrics.samples}</span>
+                                        </div>
+                                    )}
+                                    {student.metrics?.accuracy !== undefined && (
+                                        <div className="flex justify-between">
+                                            <span>Accuracy:</span>
+                                            <span className="font-medium text-emerald-600">{(student.metrics.accuracy * 100).toFixed(1)}%</span>
+                                        </div>
+                                    )}
+                                    {student.metrics?.k !== undefined && (
+                                        <div className="flex justify-between">
+                                            <span>K-Clusters:</span>
+                                            <span className="font-medium">{student.metrics.k}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

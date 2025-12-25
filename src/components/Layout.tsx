@@ -3,8 +3,13 @@ import { Camera, Brain, Layers, Info, Globe } from 'lucide-react';
 import clsx from 'clsx';
 import { useLanguage } from '../lib/i18n';
 
+import JoinClassModal from './Classroom/JoinClassModal';
+import AttentionOverlay from './Classroom/AttentionOverlay';
+
 export default function Layout() {
     const { t, language, setLanguage } = useLanguage();
+    // We can also use useClassroom here to get status for indicator if needed
+    // But StudentStatusIndicator handles it loosely
 
     const toggleLanguage = () => {
         setLanguage(language === 'zh' ? 'en' : 'zh');
@@ -12,6 +17,28 @@ export default function Layout() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex">
+            <AttentionOverlay />
+            <JoinClassModal />
+            {/* 
+               We need to pass 'status' to StudentStatusIndicator.
+               Since Layout doesn't know the specific page status (e.g. collecting vs training),
+               we have two options:
+               1. Lift state up (complex refactor)
+               2. Use a context or simpler method.
+               
+               For MVP, let's put StudentStatusIndicator INSIDE specific pages (Supervised/Unsupervised) 
+               or just let those pages call 'updateStatus' directly via hook.
+               The component was designed to take props.
+               
+               Actually, the hook `updateStatus` is exposed. Pages should call it.
+               So we don't need StudentStatusIndicator here unless it *displays* status.
+               But the planned component was "Visual feedback of connection status".
+               Let's re-read the component code.
+               
+               Ah, StudentStatusIndicator takes props and calls updateStatus effect.
+               So it should be used in SupervisedLab, not here.
+            */}
+
             {/* Sidebar Navigation */}
             <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
                 <div className="p-6 border-b border-slate-800">
