@@ -1,3 +1,5 @@
+import { Play, Square } from 'lucide-react';
+import clsx from 'clsx';
 import { type ClassInfo } from '../pages/Supervised/SupervisedLab';
 import { useLanguage } from '../lib/i18n';
 
@@ -5,12 +7,16 @@ interface PredictionPanelProps {
     predictions: { label: string, confidence: number }[];
     classes: ClassInfo[];
     isPredicting: boolean;
+    isModelTrained: boolean;
+    onTogglePrediction: (shouldPredict: boolean) => void;
 }
 
 export default function PredictionPanel({
     predictions,
     classes,
-    isPredicting
+    isPredicting,
+    isModelTrained,
+    onTogglePrediction
 }: PredictionPanelProps) {
     const { t } = useLanguage();
 
@@ -20,7 +26,32 @@ export default function PredictionPanel({
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <h2 className="font-semibold text-slate-900 mb-4">{t('supervised.prediction.title')}</h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-slate-900">{t('supervised.prediction.title')}</h2>
+                {isModelTrained && (
+                    <button
+                        onClick={() => onTogglePrediction(!isPredicting)}
+                        className={clsx(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                            isPredicting
+                                ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                        )}
+                    >
+                        {isPredicting ? (
+                            <>
+                                <Square className="w-3.5 h-3.5 fill-current" />
+                                {t('supervised.prediction.stop')}
+                            </>
+                        ) : (
+                            <>
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                {t('supervised.prediction.start')}
+                            </>
+                        )}
+                    </button>
+                )}
+            </div>
 
             {isPredicting && top ? (
                 <div className="space-y-4">
@@ -61,7 +92,9 @@ export default function PredictionPanel({
             ) : (
                 <div className="text-center py-8 text-slate-400">
                     <p>{t('supervised.prediction.waiting')}</p>
-                    <p className="text-xs mt-1 opacity-70">{t('supervised.prediction.no_model')}</p>
+                    <p className="text-xs mt-1 opacity-70">
+                        {!isModelTrained ? t('supervised.prediction.no_model') : 'Press Start to predict'}
+                    </p>
                 </div>
             )}
         </div>

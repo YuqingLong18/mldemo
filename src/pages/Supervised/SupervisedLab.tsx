@@ -32,6 +32,8 @@ export default function SupervisedLab() {
     ]);
     const [predictions, setPredictions] = useState<{ label: string, confidence: number }[]>([]);
     const [isPredicting, setIsPredicting] = useState(false);
+    const [isTraining, setIsTraining] = useState(false);
+    const [isModelTrained, setIsModelTrained] = useState(false);
     const requestRef = useRef<number | undefined>(undefined);
 
     // Initialize Model and Classifier
@@ -101,17 +103,41 @@ export default function SupervisedLab() {
             return c;
         }));
 
-        // Start predicting if not already
-        if (!isPredicting) {
+        // Reset trained status when new data is added
+        setIsModelTrained(false);
+        setIsPredicting(false);
+    };
+
+    // Train Model (Simulation)
+    const handleTrainModel = async () => {
+        if (classes.every(c => c.count === 0)) return; // No data
+
+        setIsTraining(true);
+        setIsPredicting(false);
+
+        // Simulate training time (e.g., 2 seconds)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        setIsTraining(false);
+        setIsModelTrained(true);
+    };
+
+    const togglePrediction = (shouldPredict: boolean) => {
+        if (shouldPredict && isModelTrained) {
             setIsPredicting(true);
             predictLoop();
+        } else {
+            setIsPredicting(false);
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
         }
     };
 
     // Prediction Loop
     const predictLoop = async () => {
+        if (!isPredicting && !requestRef.current) return; // Stop constraint
         if (!mobilenetRef.current || !classifierRef.current || !cameraRef.current?.video) {
-            requestRef.current = requestAnimationFrame(predictLoop);
+            // Keep requesting frame until stopped explicitly or deps ready
+            if (isPredicting) requestRef.current = requestAnimationFrame(predictLoop);
             return;
         }
 
@@ -137,8 +163,19 @@ export default function SupervisedLab() {
             embedding.dispose();
         }
 
-        requestRef.current = requestAnimationFrame(predictLoop);
+        if (isPredicting) {
+            requestRef.current = requestAnimationFrame(predictLoop);
+        }
     };
+
+    // Watch isPredicting to start/stop loop
+    useEffect(() => {
+        if (isPredicting) {
+            predictLoop();
+        } else {
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+        }
+    }, [isPredicting]);
 
     // Class Management
     const addClass = () => {
@@ -151,6 +188,8 @@ export default function SupervisedLab() {
             color,
             thumbnails: []
         }]);
+        setIsModelTrained(false); // Invalidate model
+        setIsPredicting(false);
     };
 
     const removeClass = (id: string) => {
@@ -162,6 +201,8 @@ export default function SupervisedLab() {
             }
         }
         setClasses(classes.filter(c => c.id !== id));
+        setIsModelTrained(false); // Invalidate model
+        setIsPredicting(false);
     };
 
     const handleClassNameChange = (id: string, newName: string) => {
@@ -193,6 +234,8 @@ export default function SupervisedLab() {
                         predictions={predictions}
                         classes={classes}
                         isPredicting={isPredicting}
+                        isModelTrained={isModelTrained}
+                        onTogglePrediction={togglePrediction}
                     />
 
                     <div className="p-4 bg-indigo-50 text-indigo-900 rounded-lg text-sm border border-indigo-100">
@@ -210,6 +253,9 @@ export default function SupervisedLab() {
                         onCapture={handleCapture}
                         onClassNameChange={handleClassNameChange}
                         isModelReady={!isModelLoading}
+                        isTraining={isTraining}
+                        isModelTrained={isModelTrained}
+                        onTrainModel={handleTrainModel}
                     />
                 </div>
             </div>

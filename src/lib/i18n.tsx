@@ -38,7 +38,7 @@ const translations: Translations = {
     'supervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
     'supervised.instructions.title': { zh: '操作说明:', en: 'Instructions:' },
     'supervised.instructions.text': {
-        zh: '在右侧选择一个类别，长按“采集样本”按钮来录制图像。教模型识别不同的物体（例如：您的脸 vs 您的手）。',
+        zh: '在右侧选择一个类别，点击“采集样本”按钮来捕捉图像。教模型识别不同的物体，例如脸部、手、本子、水瓶等。',
         en: 'Select a class on the right and hold "Add Example" to capture images. Teach the model to recognize different objects (e.g. your face vs your hand).'
     },
     'supervised.dataset.title': { zh: '数据集', en: 'Dataset' },
@@ -50,6 +50,11 @@ const translations: Translations = {
     'supervised.prediction.confidence': { zh: '置信度', en: 'Confidence' },
     'supervised.prediction.waiting': { zh: '等待预测...', en: 'Waiting for prediction...' },
     'supervised.prediction.no_model': { zh: '模型尚未训练', en: 'Model not trained' },
+    'supervised.dataset.train': { zh: '训练模型', en: 'Train Model' },
+    'supervised.dataset.training': { zh: '正在训练...', en: 'Training...' },
+    'supervised.dataset.trained': { zh: '模型已训练', en: 'Model Trained' },
+    'supervised.prediction.start': { zh: '开始预测', en: 'Start Prediction' },
+    'supervised.prediction.stop': { zh: '停止预测', en: 'Stop Prediction' },
 
     // Home
     'home.hero.title': { zh: '在浏览器中探索机器学习', en: 'Explore Machine Learning in Your Browser' },

@@ -1,4 +1,4 @@
-import { Trash2, Plus, Camera, Layers } from 'lucide-react';
+import { Trash2, Plus, Camera, Layers, Brain, Loader2, CheckCircle2 } from 'lucide-react';
 import clsx from 'clsx';
 import { type ClassInfo } from '../pages/Supervised/SupervisedLab';
 import { useLanguage } from '../lib/i18n';
@@ -11,6 +11,9 @@ interface DatasetPanelProps {
     onCapture: (id: string) => void;
     onClassNameChange: (id: string, newName: string) => void;
     isModelReady: boolean;
+    isTraining: boolean;
+    isModelTrained: boolean;
+    onTrainModel: () => void;
 }
 
 export default function DatasetPanel({
@@ -19,11 +22,15 @@ export default function DatasetPanel({
     onRemoveClass,
     onCapture,
     onClassNameChange,
-    isModelReady
+    isModelReady,
+    isTraining,
+    isModelTrained,
+    onTrainModel
 }: DatasetPanelProps) {
     const { t } = useLanguage();
 
     const totalExamples = classes.reduce((sum, c) => sum + c.count, 0);
+    const hasData = totalExamples > 0;
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
@@ -89,10 +96,10 @@ export default function DatasetPanel({
                         <div className="p-2 bg-white border-t border-slate-100">
                             <button
                                 onMouseDown={() => onCapture(c.id)}
-                                disabled={!isModelReady}
+                                disabled={!isModelReady || isTraining}
                                 className={clsx(
                                     "w-full py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95",
-                                    !isModelReady
+                                    !isModelReady || isTraining
                                         ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                         : "bg-white border border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow"
                                 )}
@@ -110,6 +117,39 @@ export default function DatasetPanel({
                         <p className="text-sm">No classes added.</p>
                     </div>
                 )}
+            </div>
+
+            {/* Train Button */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+                <button
+                    onClick={onTrainModel}
+                    disabled={!hasData || isTraining || isModelTrained}
+                    className={clsx(
+                        "w-full py-3 rounded-lg text-base font-semibold flex items-center justify-center gap-2 transition-all shadow-sm",
+                        isModelTrained
+                            ? "bg-green-100 text-green-700 border border-green-200 cursor-default"
+                            : !hasData || isTraining
+                                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-[0.98]"
+                    )}
+                >
+                    {isTraining ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            {t('supervised.dataset.training')}
+                        </>
+                    ) : isModelTrained ? (
+                        <>
+                            <CheckCircle2 className="w-5 h-5" />
+                            {t('supervised.dataset.trained')}
+                        </>
+                    ) : (
+                        <>
+                            <Brain className="w-5 h-5" />
+                            {t('supervised.dataset.train')}
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );
