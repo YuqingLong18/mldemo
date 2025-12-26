@@ -31,11 +31,50 @@ interface ClassroomContextType extends ClassroomState {
     kickStudent: (studentId: string) => void;
     updateStatus: (status: string, metrics?: Metrics) => void;
     requestStudentModel: (studentId: string) => void;
-    sendModelData: (thumbnails: any, dataset: any) => void;
-    onFeaturedData: (callback: (data: any) => void) => void;
+    sendModelData: (payload: FeaturedSnapshotPayload) => void;
+    onFeaturedData: (callback: (data: FeaturedDataMessage) => void) => void;
     onRequestModel: (callback: () => void) => void;
     error: string | null;
 }
+
+export interface SupervisedClassInfo {
+    id: string;
+    name: string;
+    count: number;
+    color: string;
+    thumbnails: string[];
+}
+
+export interface SupervisedSnapshot {
+    dataset: Record<string, number[][]>;
+    classes: SupervisedClassInfo[];
+}
+
+export interface UnsupervisedPoint {
+    id: string;
+    embedding: number[];
+    x?: number;
+    y?: number;
+    imageUrl?: string;
+}
+
+export interface UnsupervisedSnapshot {
+    points: UnsupervisedPoint[];
+    projectedPoints?: UnsupervisedPoint[];
+    clusters: { centroid: number[]; pointIds: string[] }[];
+    centroids: number[][] | null;
+    k: number;
+    converged: boolean;
+}
+
+export type FeaturedSnapshotPayload =
+    | { mode: 'supervised'; supervised: SupervisedSnapshot }
+    | { mode: 'unsupervised'; unsupervised: UnsupervisedSnapshot };
+
+export type FeaturedDataMessage = FeaturedSnapshotPayload & {
+    studentId?: string;
+    studentName?: string;
+};
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
@@ -128,8 +167,8 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         socket?.emit('request_model', { studentId });
     };
 
-    const sendModelData = (thumbnails: any, dataset: any) => {
-        socket?.emit('student_model_data', { thumbnails, dataset });
+    const sendModelData = (payload: FeaturedSnapshotPayload) => {
+        socket?.emit('student_model_data', payload);
     };
 
     const onRequestModel = (callback: () => void) => {
@@ -138,7 +177,7 @@ export function ClassroomProvider({ children }: { children: ReactNode }) {
         socket.on('request_model', callback);
     };
 
-    const onFeaturedData = (callback: (data: any) => void) => {
+    const onFeaturedData = (callback: (data: FeaturedDataMessage) => void) => {
         if (!socket) return;
         socket.off('student_featured_data');
         socket.on('student_featured_data', callback);

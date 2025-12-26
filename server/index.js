@@ -51,21 +51,21 @@ io.on('connection', (socket) => {
         io.to(studentId).emit('request_model');
     });
 
-    socket.on('student_model_data', ({ thumbnails, dataset }) => {
+    socket.on('student_model_data', (payload) => {
         // Find the room code and student name
         const code = Array.from(socket.rooms).find(r => r.length === 6);
         if (code) {
             const roomState = roomManager.getRoomState(code);
             if (roomState) {
                 // Find student name from room state
-                const student = roomState.students.find((s: any) => s.id === socket.id);
+                const student = roomState.students.find((s) => s.id === socket.id);
                 const studentName = student?.name || "Student";
                 
                 // Emit to room (teacher will filter)
                 io.to(code).emit('student_featured_data', {
+                    studentId: socket.id,
                     studentName,
-                    thumbnails,
-                    dataset
+                    ...payload
                 });
             }
         }

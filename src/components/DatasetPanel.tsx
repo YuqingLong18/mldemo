@@ -16,6 +16,7 @@ interface DatasetPanelProps {
     isTraining: boolean;
     isModelTrained: boolean;
     onTrainModel: () => void;
+    readOnly?: boolean;
 }
 
 export default function DatasetPanel({
@@ -28,7 +29,8 @@ export default function DatasetPanel({
     isModelReady,
     isTraining,
     isModelTrained,
-    onTrainModel
+    onTrainModel,
+    readOnly = false
 }: DatasetPanelProps) {
     const { t } = useLanguage();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +71,8 @@ export default function DatasetPanel({
                 </div>
                 <button
                     onClick={onAddClass}
-                    className="p-2 hover:bg-white rounded-lg text-slate-600 hover:text-indigo-600 transition-colors border border-transparent hover:border-slate-200"
+                    disabled={readOnly}
+                    className="p-2 hover:bg-white rounded-lg text-slate-600 hover:text-indigo-600 transition-colors border border-transparent hover:border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t('supervised.dataset.add_class')}
                 >
                     <Plus className="w-5 h-5" />
@@ -90,7 +93,12 @@ export default function DatasetPanel({
                                     type="text"
                                     value={c.name}
                                     onChange={(e) => onClassNameChange(c.id, e.target.value)}
-                                    className="bg-transparent font-medium text-slate-900 focus:outline-none focus:border-b border-indigo-500 w-32 px-1 hover:bg-slate-100 rounded transition-colors"
+                                    readOnly={readOnly}
+                                    disabled={readOnly}
+                                    className={clsx(
+                                        "bg-transparent font-medium text-slate-900 focus:outline-none focus:border-b border-indigo-500 w-32 px-1 rounded transition-colors",
+                                        readOnly ? "cursor-not-allowed opacity-70" : "hover:bg-slate-100"
+                                    )}
                                 />
                                 <span className="text-xs text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap">
                                     {c.count} {t('supervised.class.samples')}
@@ -99,7 +107,8 @@ export default function DatasetPanel({
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => onRemoveClass(c.id)}
-                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white rounded transition-colors"
+                                    disabled={readOnly}
+                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -124,10 +133,10 @@ export default function DatasetPanel({
                         <div className="p-2 bg-white border-t border-slate-100 flex gap-2">
                             <button
                                 onMouseDown={() => onCapture(c.id)}
-                                disabled={!isModelReady || isTraining}
+                                disabled={!isModelReady || isTraining || readOnly}
                                 className={clsx(
                                     "flex-1 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95",
-                                    !isModelReady || isTraining
+                                    !isModelReady || isTraining || readOnly
                                         ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                         : "bg-white border border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow"
                                 )}
@@ -137,10 +146,10 @@ export default function DatasetPanel({
                             </button>
                             <button
                                 onClick={() => handleUploadClick(c.id)}
-                                disabled={!isModelReady || isTraining}
+                                disabled={!isModelReady || isTraining || readOnly}
                                 className={clsx(
                                     "px-3 py-2 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 transition-colors",
-                                    !isModelReady || isTraining ? "opacity-50 cursor-not-allowed" : ""
+                                    !isModelReady || isTraining || readOnly ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                                 title="Upload Images"
                             >
@@ -162,12 +171,12 @@ export default function DatasetPanel({
             <div className="p-4 border-t border-slate-100 bg-slate-50">
                 <button
                     onClick={onTrainModel}
-                    disabled={!hasData || isTraining || isModelTrained}
+                    disabled={!hasData || isTraining || isModelTrained || readOnly}
                     className={clsx(
                         "w-full py-3 rounded-lg text-base font-semibold flex items-center justify-center gap-2 transition-all shadow-sm",
                         isModelTrained
                             ? "bg-green-100 text-green-700 border border-green-200 cursor-default"
-                            : !hasData || isTraining
+                            : !hasData || isTraining || readOnly
                                 ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                                 : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-[0.98]"
                     )}
@@ -193,4 +202,3 @@ export default function DatasetPanel({
         </div>
     );
 }
-

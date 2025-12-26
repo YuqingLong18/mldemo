@@ -11,6 +11,7 @@ import PredictionPanel from '../../components/PredictionPanel';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
 import StudentStatusIndicator from '../../components/Classroom/StudentStatusIndicator';
+import { type FeaturedSnapshotPayload } from '../../lib/classroom/ClassroomContext';
 
 // Define Class Data Structure
 export interface ClassInfo {
@@ -104,6 +105,7 @@ export default function SupervisedLab() {
     const [isModelTrained, setIsModelTrained] = useState(false);
     const requestRef = useRef<number | undefined>(undefined);
     const [predictionImages, setPredictionImages] = useState<PredictionImage[]>([]);
+    const classesRef = useRef<ClassInfo[]>(classes);
 
     // Calculate metrics for classroom
     const totalSamples = classes.reduce((sum, c) => sum + c.count, 0);
@@ -116,6 +118,12 @@ export default function SupervisedLab() {
     const { onRequestModel, sendModelData } = useClassroom();
     const FEATURED_MODE = location.state?.featured;
     const featuredStudentName = location.state?.studentName;
+    const featuredSnapshot = location.state?.supervised;
+    const isReadOnly = Boolean(FEATURED_MODE);
+
+    useEffect(() => {
+        classesRef.current = classes;
+    }, [classes]);
 
     // Initialize Model and Classifier
     useEffect(() => {
@@ -131,41 +139,45 @@ export default function SupervisedLab() {
             classifierRef.current = classifier;
 
             // Load Featured Data if available (takes priority over stored model)
-            if (FEATURED_MODE && location.state?.dataset) {
-                try {
-                    const dataset = location.state.dataset;
-                    const tensorDataset: { [label: string]: tf.Tensor2D } = {};
+            if (FEATURED_MODE) {
+                if (featuredSnapshot?.dataset) {
+                    try {
+                        const dataset = featuredSnapshot.dataset as Record<string, number[][]>;
+                        const tensorDataset: { [label: string]: tf.Tensor2D } = {};
 
-                    Object.entries(dataset).forEach(([label, data]) => {
-                        tensorDataset[label] = tf.tensor(data as any);
-                    });
-
-                    classifier.setClassifierDataset(tensorDataset);
-
-                    if (location.state.thumbnails) {
-                        // Reconstruct classes from thumbnails and dataset keys
-                        const newClasses = classes.map(c => {
-                            if (location.state.thumbnails[c.id]) {
-                                const thumbs = location.state.thumbnails[c.id];
-                                return {
-                                    ...c,
-                                    count: tensorDataset[c.id] ? (tensorDataset[c.id].shape[0] || 0) : 0,
-                                    thumbnails: thumbs
-                                }
-                            }
-                            return c;
+                        Object.entries(dataset).forEach(([label, data]) => {
+                            tensorDataset[label] = tf.tensor(data as any);
                         });
-                        // Adjust counts at least
+
+                        classifier.setClassifierDataset(tensorDataset);
+
+                        const baseClasses = featuredSnapshot.classes?.length ? featuredSnapshot.classes : classes;
+                        const newClasses = baseClasses.map(c => ({
+                            ...c,
+                            count: tensorDataset[c.id] ? (tensorDataset[c.id].shape[0] || 0) : 0,
+                            thumbnails: c.thumbnails || []
+                        }));
+
+                        const existingIds = new Set(newClasses.map(c => c.id));
                         Object.keys(tensorDataset).forEach(id => {
-                            const count = tensorDataset[id].shape[0];
-                            const cls = newClasses.find(c => c.id === id);
-                            if (cls) cls.count = count;
+                            if (!existingIds.has(id)) {
+                                newClasses.push({
+                                    id,
+                                    name: `Class ${String.fromCharCode(65 + newClasses.length)}`,
+                                    count: tensorDataset[id]?.shape[0] || 0,
+                                    color: COLORS[newClasses.length % COLORS.length],
+                                    thumbnails: []
+                                });
+                            }
                         });
+
                         setClasses(newClasses);
-                        setIsModelTrained(true);
+                        setIsModelTrained(Object.keys(tensorDataset).length > 0);
+                    } catch (e) {
+                        console.error("Failed to load featured model", e);
                     }
-                } catch (e) {
-                    console.error("Failed to load featured model", e);
+                } else {
+                    setIsModelTrained(false);
                 }
             } else {
                 // Try to load persisted model from sessionStorage
@@ -198,7 +210,14 @@ export default function SupervisedLab() {
             try {
                 if (!classifierRef.current || classifierRef.current.getNumClasses() === 0) {
                     // Send empty response to indicate no model available
-                    sendModelData({}, {});
+                    const emptyPayload: FeaturedSnapshotPayload = {
+                        mode: 'supervised',
+                        supervised: {
+                            dataset: {},
+                            classes: []
+                        }
+                    };
+                    sendModelData(emptyPayload);
                     return;
                 }
 
@@ -214,17 +233,32 @@ export default function SupervisedLab() {
 
                 await Promise.all(serializationPromises);
 
-                // Prepare thumbnails map (limit to last 5 per class to reduce payload size)
-                const thumbnailsMap: { [id: string]: string[] } = {};
-                classes.forEach(c => {
-                    thumbnailsMap[c.id] = c.thumbnails.slice(-5); // Only send last 5 thumbnails
-                });
+                // Trim thumbnails to reduce payload size
+                const classesForSend = classesRef.current.map(c => ({
+                    ...c,
+                    thumbnails: c.thumbnails.slice(-5)
+                }));
 
-                sendModelData(thumbnailsMap, serializableDataset);
+                const payload: FeaturedSnapshotPayload = {
+                    mode: 'supervised',
+                    supervised: {
+                        dataset: serializableDataset,
+                        classes: classesForSend
+                    }
+                };
+
+                sendModelData(payload);
             } catch (error) {
                 console.error("Error sending model data:", error);
                 // Send empty response on error
-                sendModelData({}, {});
+                const emptyPayload: FeaturedSnapshotPayload = {
+                    mode: 'supervised',
+                    supervised: {
+                        dataset: {},
+                        classes: []
+                    }
+                };
+                sendModelData(emptyPayload);
             }
         });
 
@@ -242,6 +276,7 @@ export default function SupervisedLab() {
 
     // Handle Capture
     const handleCapture = async (classId: string) => {
+        if (isReadOnly) return;
         if (!mobilenetRef.current || !classifierRef.current || !cameraRef.current?.video) return;
 
         const video = cameraRef.current.video;
@@ -303,6 +338,7 @@ export default function SupervisedLab() {
 
     // Handle Upload
     const handleUpload = async (classId: string, files: FileList) => {
+        if (isReadOnly) return;
         if (!mobilenetRef.current || !classifierRef.current) return;
 
         const uploadedThumbnails: string[] = [];
@@ -448,6 +484,7 @@ export default function SupervisedLab() {
 
     // Train Model (Simulation)
     const handleTrainModel = async () => {
+        if (isReadOnly) return;
         if (classes.every(c => c.count === 0)) return; // No data
 
         setIsTraining(true);
@@ -522,6 +559,7 @@ export default function SupervisedLab() {
 
     // Class Management
     const addClass = () => {
+        if (isReadOnly) return;
         const newId = String(classes.length);
         const color = COLORS[classes.length % COLORS.length];
         setClasses([...classes, {
@@ -536,6 +574,7 @@ export default function SupervisedLab() {
     };
 
     const removeClass = (id: string) => {
+        if (isReadOnly) return;
         if (classifierRef.current) {
             try {
                 classifierRef.current.clearClass(id);
@@ -549,6 +588,7 @@ export default function SupervisedLab() {
     };
 
     const handleClassNameChange = (id: string, newName: string) => {
+        if (isReadOnly) return;
         setClasses(prev => {
             const updated = prev.map(c =>
                 c.id === id ? { ...c, name: newName } : c
@@ -643,6 +683,7 @@ export default function SupervisedLab() {
                         isTraining={isTraining}
                         isModelTrained={isModelTrained}
                         onTrainModel={handleTrainModel}
+                        readOnly={isReadOnly}
                     />
                 </div>
             </div>

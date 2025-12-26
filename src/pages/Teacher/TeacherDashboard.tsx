@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClassroom } from '../../lib/classroom/ClassroomContext';
+import { useClassroom, type FeaturedDataMessage } from '../../lib/classroom/ClassroomContext';
 import { Users, Eye, EyeOff, Activity, LogOut, Trash2, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -30,7 +30,11 @@ export default function TeacherDashboard() {
 
     // Listen for incoming student model
     useEffect(() => {
-        const handleFeaturedData = (data: any) => {
+        const handleFeaturedData = (data: FeaturedDataMessage) => {
+            if (transferringId && data.studentId && data.studentId !== transferringId) {
+                return;
+            }
+
             // Clear any pending timeout
             if (transferTimeoutRef.current) {
                 clearTimeout(transferTimeoutRef.current);
@@ -38,23 +42,41 @@ export default function TeacherDashboard() {
             }
             
             setTransferringId(null); // Clear loading state
-            
-            // Check if student has a trained model
-            const hasData = data.dataset && Object.keys(data.dataset).length > 0;
-            
+
+            if (data.mode === 'unsupervised') {
+                const snapshot = data.unsupervised;
+                const hasData = snapshot && snapshot.points && snapshot.points.length > 0;
+
+                if (!hasData) {
+                    alert(`Student "${data.studentName || 'Unknown'}" doesn't have any clustering data yet. Please ask them to capture samples and run clustering first.`);
+                    return;
+                }
+
+                navigate('/unsupervised', {
+                    state: {
+                        featured: true,
+                        studentName: data.studentName,
+                        unsupervised: snapshot
+                    }
+                });
+                return;
+            }
+
+            const supervisedSnapshot = data.supervised;
+
+            const hasData = supervisedSnapshot && Object.keys(supervisedSnapshot.dataset || {}).length > 0;
+
             if (!hasData) {
-                // Show error message - student doesn't have a trained model
                 alert(`Student "${data.studentName || 'Unknown'}" doesn't have a trained model yet. Please ask them to train their model first.`);
                 return;
             }
-            
+
             // Navigate to SupervisedLab with data
             navigate('/supervised', {
                 state: {
                     featured: true,
                     studentName: data.studentName,
-                    thumbnails: data.thumbnails,
-                    dataset: data.dataset
+                    supervised: supervisedSnapshot
                 }
             });
         };
@@ -66,7 +88,7 @@ export default function TeacherDashboard() {
                 clearTimeout(transferTimeoutRef.current);
             }
         };
-    }, [navigate, onFeaturedData]);
+    }, [navigate, onFeaturedData, transferringId]);
 
     const handleRequestModel = (studentId: string) => {
         if (transferringId) return; // Prevent multiple requests

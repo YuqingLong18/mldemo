@@ -9,6 +9,7 @@ import { Loader2, Camera, Play, RefreshCw, Upload, X } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
 import StudentStatusIndicator from '../Classroom/StudentStatusIndicator';
 import clsx from 'clsx';
+import { useClassroom, type FeaturedSnapshotPayload, type UnsupervisedSnapshot } from '../../lib/classroom/ClassroomContext';
 
 interface DataPoint {
     id: string;
@@ -19,16 +20,24 @@ interface DataPoint {
     imageUrl?: string; // Captured image data URL
 }
 
-export default function WebcamLab() {
+interface WebcamLabProps {
+    readOnly?: boolean;
+    snapshot?: UnsupervisedSnapshot;
+}
+
+export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps) {
     const { t } = useLanguage();
+    const { onRequestModel, sendModelData, isTeacher } = useClassroom();
     const cameraRef = useRef<CameraHandle>(null);
     const mobilenetRef = useRef<any>(null);
     const [isModelLoading, setIsModelLoading] = useState(true);
-    const [points, setPoints] = useState<DataPoint[]>([]);
-    const [k, setK] = useState(3);
-    const [clusters, setClusters] = useState<{ centroid: number[], pointIds: string[] }[]>([]);
-    const [centroids, setCentroids] = useState<number[][] | null>(null); // For stateful K-Means
-    const [isConverged, setIsConverged] = useState(false);
+    const [points, setPoints] = useState<DataPoint[]>(
+        snapshot?.projectedPoints?.length ? snapshot.projectedPoints : (snapshot?.points || [])
+    );
+    const [k, setK] = useState(snapshot?.k || 3);
+    const [clusters, setClusters] = useState<{ centroid: number[], pointIds: string[] }[]>(snapshot?.clusters || []);
+    const [centroids, setCentroids] = useState<number[][] | null>(snapshot?.centroids || null); // For stateful K-Means
+    const [isConverged, setIsConverged] = useState(snapshot?.converged || false);
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     
@@ -40,6 +49,11 @@ export default function WebcamLab() {
 
     // Load Model
     useEffect(() => {
+        if (readOnly) {
+            setIsModelLoading(false);
+            return;
+        }
+
         async function init() {
             try {
                 setIsModelLoading(true);
@@ -54,14 +68,53 @@ export default function WebcamLab() {
             }
         }
         init();
-    }, []);
+    }, [readOnly, t]);
 
     // Compute PCA when points change
-    const [projectedPoints, setProjectedPoints] = useState<DataPoint[]>([]);
+    const [projectedPoints, setProjectedPoints] = useState<DataPoint[]>(snapshot?.projectedPoints || []);
+    const snapshotRef = useRef<UnsupervisedSnapshot>({
+        points: snapshot?.projectedPoints?.length ? snapshot.projectedPoints : (snapshot?.points || []),
+        clusters: snapshot?.clusters || [],
+        centroids: snapshot?.centroids || null,
+        k: snapshot?.k || 3,
+        converged: snapshot?.converged || false,
+        projectedPoints: snapshot?.projectedPoints
+    });
+
+    useEffect(() => {
+        snapshotRef.current = {
+            points: projectedPoints.length > 0 ? projectedPoints : points,
+            clusters,
+            centroids,
+            k,
+            converged: isConverged
+        };
+    }, [points, projectedPoints, clusters, centroids, k, isConverged]);
+
+    useEffect(() => {
+        if (snapshot) {
+            const basePoints = snapshot.projectedPoints?.length
+                ? snapshot.projectedPoints
+                : (snapshot.points || []);
+            setPoints(basePoints);
+            setClusters(snapshot.clusters || []);
+            setCentroids(snapshot.centroids || null);
+            setK(snapshot.k || 3);
+            setIsConverged(snapshot.converged || false);
+            if (snapshot.projectedPoints) {
+                setProjectedPoints(snapshot.projectedPoints);
+            }
+        }
+    }, [snapshot]);
 
     useEffect(() => {
         if (points.length === 0) {
             setProjectedPoints([]);
+            return;
+        }
+
+        if (readOnly && points.every(p => typeof p.x === 'number' && typeof p.y === 'number')) {
+            setProjectedPoints(points);
             return;
         }
 
@@ -109,9 +162,22 @@ export default function WebcamLab() {
         };
 
         runPCA();
-    }, [points]);
+    }, [points, readOnly]);
+
+    useEffect(() => {
+        if (readOnly || isTeacher) return;
+
+        onRequestModel(() => {
+            const payload: FeaturedSnapshotPayload = {
+                mode: 'unsupervised',
+                unsupervised: snapshotRef.current
+            };
+            sendModelData(payload);
+        });
+    }, [onRequestModel, sendModelData, readOnly, isTeacher]);
 
     const handleCapture = async () => {
+        if (readOnly) return;
         if (!mobilenetRef.current || !cameraRef.current?.video) return;
 
         try {
@@ -160,10 +226,12 @@ export default function WebcamLab() {
     };
 
     const handleUploadClick = () => {
+        if (readOnly) return;
         fileInputRef.current?.click();
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (readOnly) return;
         const files = e.target.files;
         if (!files || files.length === 0 || !mobilenetRef.current) return;
 
@@ -235,10 +303,12 @@ export default function WebcamLab() {
     };
 
     const handleClearThumbnails = () => {
+        if (readOnly) return;
         setUploadedThumbnails([]);
     };
 
     const handleCluster = () => {
+        if (readOnly) return;
         if (points.length < k) return;
 
         // Run K-Means (Step-wise or full run?)
@@ -278,6 +348,7 @@ export default function WebcamLab() {
     };
 
     const handleReset = () => {
+        if (readOnly) return;
         setPoints([]);
         setClusters([]);
         setCentroids(null);
@@ -332,12 +403,13 @@ export default function WebcamLab() {
                         className="hidden"
                         ref={fileInputRef}
                         onChange={handleFileChange}
+                        disabled={readOnly}
                     />
                     
                     <div className="flex gap-2">
                         <button
                             onClick={handleCapture}
-                            disabled={isModelLoading || isUploading}
+                            disabled={isModelLoading || isUploading || readOnly}
                             className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <Camera className="w-5 h-5" />
@@ -345,10 +417,10 @@ export default function WebcamLab() {
                         </button>
                         <button
                             onClick={handleUploadClick}
-                            disabled={isModelLoading || isUploading}
+                            disabled={isModelLoading || isUploading || readOnly}
                             className={clsx(
                                 "px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors",
-                                isModelLoading || isUploading
+                                isModelLoading || isUploading || readOnly
                                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                                     : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600"
                             )}
@@ -385,7 +457,8 @@ export default function WebcamLab() {
                                 </h3>
                                 <button
                                     onClick={handleClearThumbnails}
-                                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    disabled={readOnly}
+                                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     title="Clear thumbnails"
                                 >
                                     <X className="w-4 h-4" />
@@ -418,7 +491,9 @@ export default function WebcamLab() {
                                 min={2}
                                 max={6}
                                 value={k}
+                                disabled={readOnly}
                                 onChange={e => {
+                                    if (readOnly) return;
                                     setK(Number(e.target.value));
                                     setCentroids(null);
                                     setIsConverged(false);
@@ -429,7 +504,7 @@ export default function WebcamLab() {
                         </div>
                         <button
                             onClick={handleCluster}
-                            disabled={points.length < k || isConverged}
+                            disabled={points.length < k || isConverged || readOnly}
                             className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <Play className="w-4 h-4" />
@@ -437,7 +512,8 @@ export default function WebcamLab() {
                         </button>
                         <button
                             onClick={handleReset}
-                            className="w-full py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                            disabled={readOnly}
+                            className="w-full py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <RefreshCw className="w-4 h-4" />
                             {t('unsupervised.reset')}
