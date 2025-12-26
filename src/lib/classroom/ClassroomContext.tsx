@@ -39,8 +39,8 @@ interface ClassroomContextType extends ClassroomState {
 
 const ClassroomContext = createContext<ClassroomContextType | undefined>(undefined);
 
-// Adjust URL for production deployment later
-const SOCKET_URL = 'http://localhost:3001';
+// Adjust URL for production deployment
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3015';
 
 export function ClassroomProvider({ children }: { children: ReactNode }) {
     const [socket, setSocket] = useState<Socket | null>(null);

@@ -16,7 +16,7 @@ const io = new Server(server, {
     }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3015;
 
 io.on('connection', (socket) => {
     // console.log('Client connected:', socket.id);
