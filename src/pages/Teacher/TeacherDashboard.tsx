@@ -25,7 +25,7 @@ export default function TeacherDashboard() {
     // const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
     const [transferringId, setTransferringId] = useState<string | null>(null);
-    const transferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const transferTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
     const navigate = useNavigate();
 
     // Listen for incoming student model

@@ -151,14 +151,16 @@ export default function SupervisedLab() {
 
                         classifier.setClassifierDataset(tensorDataset);
 
-                        const baseClasses = featuredSnapshot.classes?.length ? featuredSnapshot.classes : classes;
-                        const newClasses = baseClasses.map(c => ({
+                        const baseClasses: ClassInfo[] = featuredSnapshot.classes?.length
+                            ? (featuredSnapshot.classes as ClassInfo[])
+                            : classes;
+                        const newClasses = baseClasses.map((c) => ({
                             ...c,
                             count: tensorDataset[c.id] ? (tensorDataset[c.id].shape[0] || 0) : 0,
                             thumbnails: c.thumbnails || []
                         }));
 
-                        const existingIds = new Set(newClasses.map(c => c.id));
+                        const existingIds = new Set(newClasses.map((c) => c.id));
                         Object.keys(tensorDataset).forEach(id => {
                             if (!existingIds.has(id)) {
                                 newClasses.push({

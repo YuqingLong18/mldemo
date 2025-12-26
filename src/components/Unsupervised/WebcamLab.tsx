@@ -9,7 +9,7 @@ import { Loader2, Camera, Play, RefreshCw, Upload, X } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
 import StudentStatusIndicator from '../Classroom/StudentStatusIndicator';
 import clsx from 'clsx';
-import { useClassroom, type FeaturedSnapshotPayload, type UnsupervisedSnapshot } from '../../lib/classroom/ClassroomContext';
+import { useClassroom, type FeaturedSnapshotPayload, type UnsupervisedPoint, type UnsupervisedSnapshot } from '../../lib/classroom/ClassroomContext';
 
 interface DataPoint {
     id: string;
