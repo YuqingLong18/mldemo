@@ -46,9 +46,10 @@ export default function TeacherDashboard() {
             if (data.mode === 'unsupervised') {
                 const snapshot = data.unsupervised;
                 const hasData = snapshot && snapshot.points && snapshot.points.length > 0;
+                const studentName = data.studentName || t('common.unknown');
 
                 if (!hasData) {
-                    alert(`Student "${data.studentName || 'Unknown'}" doesn't have any clustering data yet. Please ask them to capture samples and run clustering first.`);
+                    alert(t('teacher.dashboard.feature_no_clustering').replace('{name}', studentName));
                     return;
                 }
 
@@ -63,11 +64,11 @@ export default function TeacherDashboard() {
             }
 
             const supervisedSnapshot = data.supervised;
-
+            const studentName = data.studentName || t('common.unknown');
             const hasData = supervisedSnapshot && Object.keys(supervisedSnapshot.dataset || {}).length > 0;
 
             if (!hasData) {
-                alert(`Student "${data.studentName || 'Unknown'}" doesn't have a trained model yet. Please ask them to train their model first.`);
+                alert(t('teacher.dashboard.feature_no_model').replace('{name}', studentName));
                 return;
             }
 
@@ -88,7 +89,7 @@ export default function TeacherDashboard() {
                 clearTimeout(transferTimeoutRef.current);
             }
         };
-    }, [navigate, onFeaturedData, transferringId]);
+    }, [navigate, onFeaturedData, transferringId, t]);
 
     const handleRequestModel = (studentId: string) => {
         if (transferringId) return; // Prevent multiple requests
@@ -105,7 +106,7 @@ export default function TeacherDashboard() {
         transferTimeoutRef.current = setTimeout(() => {
             setTransferringId(null);
             transferTimeoutRef.current = null;
-            alert('Request timed out. The student may not have a trained model or may be experiencing connection issues.');
+            alert(t('teacher.dashboard.feature_timeout'));
         }, 10000);
     };
 
@@ -142,7 +143,7 @@ export default function TeacherDashboard() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="text-center md:text-left">
                     <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wider">{t('teacher.dashboard.code_label')}</h2>
-                    <div className="text-5xl font-mono font-bold text-indigo-600 tracking-widest my-2 select-all cursor-pointer" title="Click to copy">
+                    <div className="text-5xl font-mono font-bold text-indigo-600 tracking-widest my-2 select-all cursor-pointer" title={t('teacher.dashboard.copy_code')}>
                         {code}
                     </div>
                     <p className="text-sm text-slate-600 flex items-center gap-2">
@@ -175,7 +176,7 @@ export default function TeacherDashboard() {
                     <button
                         onClick={leaveRoom}
                         className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="End Session"
+                        title={t('teacher.dashboard.end_session')}
                     >
                         <LogOut className="w-6 h-6" />
                     </button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { CameraOff } from 'lucide-react';
+import { useLanguage } from '../lib/i18n';
 
 interface CameraViewProps {
     onReady?: (video: HTMLVideoElement) => void;
@@ -12,6 +13,7 @@ export interface CameraHandle {
 }
 
 const CameraView = forwardRef<CameraHandle, CameraViewProps>(({ onReady }, ref) => {
+    const { t } = useLanguage();
     const videoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = React.useState<string | null>(null);
     const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -45,7 +47,7 @@ const CameraView = forwardRef<CameraHandle, CameraViewProps>(({ onReady }, ref) 
                 }
             } catch (err) {
                 console.error("Camera permission denied or error:", err);
-                setError("Camera access denied or unavailable. Please allow camera permissions to use this app.");
+                setError(t('camera.permission_error'));
             }
         }
 
@@ -78,7 +80,7 @@ const CameraView = forwardRef<CameraHandle, CameraViewProps>(({ onReady }, ref) 
                 />
             )}
             <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                Webcam Feed
+                {t('camera.webcam_feed')}
             </div>
         </div>
     );

@@ -65,6 +65,7 @@ export interface UnsupervisedSnapshot {
     centroids: number[][] | null;
     k: number;
     converged: boolean;
+    uploadedThumbnails?: Array<{ id: string; thumbnail: string; fileName: string }>;
 }
 
 export type FeaturedSnapshotPayload =

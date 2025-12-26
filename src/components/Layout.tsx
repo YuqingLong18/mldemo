@@ -51,7 +51,7 @@ export default function Layout() {
                 <div className="p-6 border-b border-slate-800">
                     <h1 className="text-xl font-bold text-white flex items-center gap-2">
                         <Brain className="w-6 h-6 text-indigo-400" />
-                        <span>ML Playground</span>
+                        <span>{t('layout.title')}</span>
                     </h1>
                 </div>
 
@@ -121,8 +121,8 @@ export default function Layout() {
                     </button>
 
                     <div className="text-xs text-slate-500">
-                        <p>Running locally in browser.</p>
-                        <p>No data uploaded.</p>
+                        <p>{t('layout.running_local')}</p>
+                        <p>{t('layout.no_uploads')}</p>
                     </div>
                 </div>
             </aside>

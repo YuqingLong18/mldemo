@@ -16,6 +16,16 @@ const translations: Translations = {
     'nav.home': { zh: '首页', en: 'Home' },
     'nav.return_dashboard': { zh: '返回教师面板', en: 'Return to Teacher Dashboard' },
     'footer.credits': { zh: '基于 TensorFlow.js 构建', en: 'Built with TensorFlow.js' },
+    'common.back': { zh: '返回', en: 'Back' },
+    'common.unknown': { zh: '未知', en: 'Unknown' },
+    'common.upload': { zh: '上传', en: 'Upload' },
+    'common.clear': { zh: '清除', en: 'Clear' },
+    'common.uploading': { zh: '正在上传...', en: 'Uploading...' },
+    'common.error_not_image': { zh: '不是图片文件。', en: 'Not an image file.' },
+    'common.error_file_too_large': { zh: '文件过大（最大 {max}MB）。', en: 'File too large (Max {max}MB).' },
+    'common.error_canvas_context': { zh: '无法获取画布上下文。', en: 'Failed to get canvas context.' },
+    'common.error_load_image': { zh: '加载图片失败。', en: 'Failed to load image.' },
+    'common.error_read_file': { zh: '读取文件失败。', en: 'Failed to read file.' },
 
     // Auth - Teacher
     'teacher.login_title': { zh: '教师登录', en: 'Teacher Login' },
@@ -24,6 +34,7 @@ const translations: Translations = {
     'teacher.password': { zh: '密码', en: 'Password' },
     'teacher.login_btn': { zh: '登录', en: 'Login' },
     'teacher.login_error': { zh: '凭据无效，请重试。', en: 'Invalid credentials. Please try again.' },
+    'teacher.login_connection_error': { zh: '连接失败。请确认凭据数据库已启动。', en: 'Connection failed. Is the credential DB running?' },
 
     // Teacher Dashboard
     'teacher.dashboard.title': { zh: '教师面板', en: 'Teacher Dashboard' },
@@ -43,6 +54,20 @@ const translations: Translations = {
     'teacher.dashboard.samples': { zh: '样本数:', en: 'Samples:' },
     'teacher.dashboard.accuracy': { zh: '准确率:', en: 'Accuracy:' },
     'teacher.dashboard.k_clusters': { zh: 'K-聚类:', en: 'K-Clusters:' },
+    'teacher.dashboard.feature_no_clustering': {
+        zh: '学生“{name}”还没有聚类数据，请先采集样本并运行 K-Means。',
+        en: 'Student "{name}" does not have clustering data yet. Please capture samples and run K-Means first.'
+    },
+    'teacher.dashboard.feature_no_model': {
+        zh: '学生“{name}”还没有训练好的模型，请先训练模型。',
+        en: 'Student "{name}" does not have a trained model yet. Please train the model first.'
+    },
+    'teacher.dashboard.feature_timeout': {
+        zh: '请求超时。学生可能还没有训练模型或连接出现问题。',
+        en: 'Request timed out. The student may not have a trained model or may be experiencing connection issues.'
+    },
+    'teacher.dashboard.copy_code': { zh: '点击复制', en: 'Click to copy' },
+    'teacher.dashboard.end_session': { zh: '结束课堂', en: 'End Session' },
 
     // Auth - Student
     'student.login_title': { zh: '加入课堂', en: 'Join Classroom' },
@@ -52,10 +77,36 @@ const translations: Translations = {
     'student.join_btn': { zh: '加入课堂', en: 'Join Class' },
     'student.iam_teacher': { zh: '我是老师', en: 'I am a Teacher' },
     'student.code_error': { zh: '代码格式无效或名字为空。', en: 'Invalid code format or empty name.' },
+    'student.connected': { zh: '已连接到课堂', en: 'Connected to Class' },
+    'student.join_modal_title': { zh: '加入课堂', en: 'Join Classroom' },
+    'student.join_modal_open': { zh: '加入课堂', en: 'Join Class' },
+    'student.name': { zh: '你的名字', en: 'Your Name' },
+    'student.name_placeholder': { zh: '请输入你的名字', en: 'Enter your name' },
+    'student.join_short': { zh: '加入', en: 'Join' },
+
+    // Camera
+    'camera.webcam_feed': { zh: '摄像头画面', en: 'Webcam Feed' },
+    'camera.permission_error': {
+        zh: '无法访问摄像头，请允许摄像头权限以使用本应用。',
+        en: 'Camera access denied or unavailable. Please allow camera permissions to use this app.'
+    },
+
+    // Attention Overlay
+    'attention.title': { zh: '注意老师', en: 'EYES ON TEACHER' },
+    'attention.message': {
+        zh: '请暂停操作，注视教室前方以听取指示。',
+        en: 'Please pause your work and look at the front of the classroom for instructions.'
+    },
+
+    // Layout
+    'layout.running_local': { zh: '正在浏览器本地运行。', en: 'Running locally in browser.' },
+    'layout.no_uploads': { zh: '不上传任何数据。', en: 'No data uploaded.' },
+    'layout.title': { zh: 'ML Playground', en: 'ML Playground' },
 
     // Unsupervised Lab
     'unsupervised.title': { zh: '无监督学习实验室', en: 'Unsupervised Learning Lab' },
     'unsupervised.loading': { zh: '正在加载 MobileNet 模型...', en: 'Loading MobileNet Model...' },
+    'unsupervised.loading_error': { zh: '无法加载 MobileNet 模型。', en: 'Failed to load MobileNet model.' },
     'unsupervised.capture': { zh: '采集样本', en: 'Capture Example' },
     'unsupervised.clustering_controls': { zh: '聚类控制', en: 'Clustering Controls' },
     'unsupervised.clusters_k': { zh: '聚类数量 (K):', en: 'Clusters (K):' },
@@ -71,11 +122,32 @@ const translations: Translations = {
     'unsupervised.clusters': { zh: '聚类', en: 'Clusters' },
     'unsupervised.tab.webcam': { zh: '自己试试', en: 'Try it yourself' },
     'unsupervised.tab.iris': { zh: '鸢尾花 (Iris) K-Means', en: 'Iris K-Means' },
+    'unsupervised.upload_title': { zh: '上传图片', en: 'Upload images' },
+    'unsupervised.uploaded_images': { zh: '已上传图片', en: 'Uploaded Images' },
+    'unsupervised.clear_thumbnails': { zh: '清除缩略图', en: 'Clear thumbnails' },
+    'unsupervised.error_pca': { zh: 'PCA 计算失败：{error}', en: 'PCA Calculation Failed: {error}' },
+    'unsupervised.error_capture': { zh: '采集失败：{error}', en: 'Capture Failed: {error}' },
+    'unsupervised.error_process_file': { zh: '处理文件 {name} 失败：{error}', en: 'Failed to process {name}: {error}' },
+    'unsupervised.error_invalid_embedding': {
+        zh: '嵌入向量包含无效数值 (NaN/Infinity)。',
+        en: 'Embedding contains invalid numbers (NaN/Infinity).'
+    },
+    'unsupervised.featured.title': { zh: '查看学生聚类', en: 'Viewing Student Clustering' },
+    'unsupervised.featured.subtitle': { zh: '{name} 的聚类', en: "{name}'s Clusters" },
+    'unsupervised.point_preview_alt': { zh: '点预览', en: 'Point Preview' },
     'unsupervised.iris.show_labels': { zh: '显示真实类别', en: 'Show True Labels' },
     'unsupervised.iris.hide_labels': { zh: '隐藏真实类别', en: 'Hide True Labels' },
     'unsupervised.iris.compare_tip': { zh: '对比聚类结果和真实类别，看看算法表现如何！', en: 'Compare clusters with true species to see how well the algorithm performed!' },
     'unsupervised.iris.true_species': { zh: '真实鸢尾花类别', en: 'True Iris Species' },
     'unsupervised.iris.cluster_assignments': { zh: 'K-Means 聚类结果', en: 'K-Means Cluster Assignments' },
+    'unsupervised.iris.about_title': { zh: '关于鸢尾花数据集', en: 'About Iris Dataset' },
+    'unsupervised.iris.about_body': {
+        zh: '1936 年 Ronald Fisher 提出的经典数据集，包含三种花：Setosa、Versicolor、Virginica。此处可视化花瓣长度与花瓣宽度。',
+        en: 'A classic dataset introduced by Ronald Fisher in 1936. Includes 3 species: Setosa, Versicolor, and Virginica. We visualize Petal Length vs Petal Width.'
+    },
+    'unsupervised.iris.centroid': { zh: '质心', en: 'Centroid' },
+    'unsupervised.iris.petal_length': { zh: '花瓣长度', en: 'Petal Length' },
+    'unsupervised.iris.petal_width': { zh: '花瓣宽度', en: 'Petal Width' },
 
     // Supervised Lab
     'supervised.title': { zh: '监督学习实验室', en: 'Supervised Learning Lab' },
@@ -94,11 +166,22 @@ const translations: Translations = {
     'supervised.prediction.confidence': { zh: '置信度', en: 'Confidence' },
     'supervised.prediction.waiting': { zh: '等待预测...', en: 'Waiting for prediction...' },
     'supervised.prediction.no_model': { zh: '模型尚未训练', en: 'Model not trained' },
+    'supervised.prediction.upload': { zh: '上传', en: 'Upload' },
+    'supervised.prediction.upload_title': { zh: '上传图片进行预测', en: 'Upload images to predict' },
+    'supervised.prediction.clear': { zh: '清除', en: 'Clear' },
+    'supervised.prediction.clear_title': { zh: '清除预测结果', en: 'Clear predictions' },
+    'supervised.prediction.uploaded_images': { zh: '已上传图片', en: 'Uploaded Images' },
+    'supervised.prediction.live_camera': { zh: '实时摄像头预测', en: 'Live Camera Prediction' },
+    'supervised.prediction.upload_or_start': { zh: '上传图片或点击“开始预测”', en: 'Upload images or press Start to predict' },
     'supervised.dataset.train': { zh: '训练模型', en: 'Train Model' },
     'supervised.dataset.training': { zh: '正在训练...', en: 'Training...' },
     'supervised.dataset.trained': { zh: '模型已训练', en: 'Model Trained' },
     'supervised.prediction.start': { zh: '开始预测', en: 'Start Prediction' },
     'supervised.prediction.stop': { zh: '停止预测', en: 'Stop Prediction' },
+    'supervised.dataset.upload_title': { zh: '上传图片', en: 'Upload Images' },
+    'supervised.dataset.empty': { zh: '暂无类别。', en: 'No classes added.' },
+    'supervised.featured.title': { zh: '查看学生模型', en: 'Viewing Student Model' },
+    'supervised.featured.subtitle': { zh: '{name} 的模型', en: "{name}'s Model" },
 
     // Home
     'home.hero.title': { zh: '在浏览器中探索机器学习', en: 'Explore Machine Learning in Your Browser' },

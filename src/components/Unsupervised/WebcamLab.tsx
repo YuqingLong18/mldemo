@@ -20,6 +20,24 @@ interface DataPoint {
     imageUrl?: string; // Captured image data URL
 }
 
+const UNSUPERVISED_STORAGE_KEY = 'unsupervised_webcam_session';
+
+interface StoredProjectionPoint {
+    id: string;
+    x: number;
+    y: number;
+}
+
+interface StoredSnapshot {
+    points: UnsupervisedPoint[];
+    projectedPoints?: StoredProjectionPoint[];
+    clusters: { centroid: number[]; pointIds: string[] }[];
+    centroids: number[][] | null;
+    k: number;
+    converged: boolean;
+    uploadedThumbnails?: Array<{ id: string; thumbnail: string; fileName: string }>;
+}
+
 interface WebcamLabProps {
     readOnly?: boolean;
     snapshot?: UnsupervisedSnapshot;
@@ -46,6 +64,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
     const [uploadedThumbnails, setUploadedThumbnails] = useState<Array<{ id: string; thumbnail: string; fileName: string }>>([]);
+    const [isHydrated, setIsHydrated] = useState(false);
 
     // Load Model
     useEffect(() => {
@@ -62,7 +81,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                 setError(null);
             } catch (err) {
                 console.error("Model load error:", err);
-                setError(t('unsupervised.loading_error') || "Failed to load MobileNet model.");
+                setError(t('unsupervised.loading_error'));
             } finally {
                 setIsModelLoading(false);
             }
@@ -72,40 +91,201 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
 
     // Compute PCA when points change
     const [projectedPoints, setProjectedPoints] = useState<DataPoint[]>(snapshot?.projectedPoints || []);
+    const [restoreProjection, setRestoreProjection] = useState(false);
     const snapshotRef = useRef<UnsupervisedSnapshot>({
         points: snapshot?.projectedPoints?.length ? snapshot.projectedPoints : (snapshot?.points || []),
         clusters: snapshot?.clusters || [],
         centroids: snapshot?.centroids || null,
         k: snapshot?.k || 3,
         converged: snapshot?.converged || false,
-        projectedPoints: snapshot?.projectedPoints
+        projectedPoints: snapshot?.projectedPoints,
+        uploadedThumbnails: snapshot?.uploadedThumbnails
     });
+
+    const loadSnapshot = () => {
+        try {
+            const stored = sessionStorage.getItem(UNSUPERVISED_STORAGE_KEY);
+            if (!stored) return null;
+            return JSON.parse(stored) as StoredSnapshot;
+        } catch (err) {
+            console.warn("Failed to load unsupervised session:", err);
+            return null;
+        }
+    };
+
+    const saveSnapshot = (data: StoredSnapshot) => {
+        try {
+            sessionStorage.setItem(UNSUPERVISED_STORAGE_KEY, JSON.stringify(data));
+        } catch (err) {
+            console.warn("Failed to save unsupervised session, trimming thumbnails:", err);
+            try {
+                const minimized: StoredSnapshot = {
+                    ...data,
+                    points: data.points.map(p => {
+                        const { imageUrl, ...rest } = p;
+                        return rest;
+                    }),
+                    uploadedThumbnails: []
+                };
+                sessionStorage.setItem(UNSUPERVISED_STORAGE_KEY, JSON.stringify(minimized));
+            } catch (retryErr) {
+                console.warn("Failed to save minimized unsupervised session:", retryErr);
+            }
+        }
+    };
+
+    const clearSnapshot = () => {
+        sessionStorage.removeItem(UNSUPERVISED_STORAGE_KEY);
+    };
+
+    const localizeErrorMessage = (message: string) => {
+        if (message === 'Not an image file.') {
+            return t('common.error_not_image');
+        }
+        if (message.startsWith('File too large')) {
+            const match = message.match(/Max (\d+(?:\.\d+)?)MB/);
+            const maxSize = match ? match[1] : '4';
+            return t('common.error_file_too_large').replace('{max}', maxSize);
+        }
+        if (message === 'Failed to load image') {
+            return t('common.error_load_image');
+        }
+        if (message === 'Failed to read file') {
+            return t('common.error_read_file');
+        }
+        if (message === 'Failed to get canvas context') {
+            return t('common.error_canvas_context');
+        }
+        return message;
+    };
+
+    const mergeProjectionIntoPoints = (
+        basePoints: UnsupervisedPoint[],
+        projections?: Array<{ id: string; x?: number; y?: number }>
+    ) => {
+        if (!projections || projections.length === 0) return basePoints;
+        const projectionMap = new Map(projections.map(p => [p.id, p]));
+        return basePoints.map(p => {
+            const projected = projectionMap.get(p.id);
+            if (!projected || typeof projected.x !== 'number' || typeof projected.y !== 'number') return p;
+            return {
+                ...p,
+                x: projected.x,
+                y: projected.y
+            };
+        });
+    };
+
+    const rehydrateImageUrls = (
+        basePoints: UnsupervisedPoint[],
+        thumbnails: Array<{ id: string; thumbnail: string }>
+    ) => {
+        if (!thumbnails.length) return basePoints;
+        const thumbMap = new Map(thumbnails.map(t => [t.id, t.thumbnail]));
+        return basePoints.map(p => {
+            if (!p.imageUrl && thumbMap.has(p.id)) {
+                return { ...p, imageUrl: thumbMap.get(p.id) };
+            }
+            return p;
+        });
+    };
+
+    const buildStoredProjection = (current: DataPoint[]) => {
+        const compact = current
+            .filter(p => typeof p.x === 'number' && typeof p.y === 'number')
+            .map(p => ({
+                id: p.id,
+                x: p.x as number,
+                y: p.y as number
+            }));
+        return compact.length > 0 ? compact : undefined;
+    };
+
+    const stripUploadedImageUrls = (
+        basePoints: UnsupervisedPoint[],
+        thumbnails: Array<{ id: string }>
+    ) => {
+        if (!thumbnails.length) return basePoints;
+        const uploadedIds = new Set(thumbnails.map(t => t.id));
+        return basePoints.map(p => {
+            if (!uploadedIds.has(p.id)) return p;
+            const { imageUrl, ...rest } = p;
+            return rest;
+        });
+    };
 
     useEffect(() => {
         snapshotRef.current = {
-            points: projectedPoints.length > 0 ? projectedPoints : points,
+            points,
+            projectedPoints: projectedPoints.length > 0 ? projectedPoints : undefined,
             clusters,
             centroids,
             k,
-            converged: isConverged
+            converged: isConverged,
+            uploadedThumbnails
         };
-    }, [points, projectedPoints, clusters, centroids, k, isConverged]);
+    }, [points, projectedPoints, clusters, centroids, k, isConverged, uploadedThumbnails]);
 
     useEffect(() => {
         if (snapshot) {
-            const basePoints = snapshot.projectedPoints?.length
-                ? snapshot.projectedPoints
-                : (snapshot.points || []);
-            setPoints(basePoints);
+            const basePoints = snapshot.points || [];
+            const mergedPoints = mergeProjectionIntoPoints(basePoints, snapshot.projectedPoints);
+            setPoints(mergedPoints);
             setClusters(snapshot.clusters || []);
             setCentroids(snapshot.centroids || null);
             setK(snapshot.k || 3);
             setIsConverged(snapshot.converged || false);
-            if (snapshot.projectedPoints) {
-                setProjectedPoints(snapshot.projectedPoints);
+            if (snapshot.projectedPoints?.length) {
+                setProjectedPoints(mergedPoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number'));
+            }
+            if (snapshot.uploadedThumbnails?.length) {
+                setUploadedThumbnails(snapshot.uploadedThumbnails);
+            }
+            return;
+        }
+
+        if (readOnly) {
+            return;
+        }
+
+        const stored = loadSnapshot();
+        if (stored) {
+            const basePoints = stored.points || [];
+            const withProjection = mergeProjectionIntoPoints(basePoints, stored.projectedPoints);
+            const hydratedPoints = stored.uploadedThumbnails?.length
+                ? rehydrateImageUrls(withProjection, stored.uploadedThumbnails)
+                : withProjection;
+            setPoints(hydratedPoints);
+            setClusters(stored.clusters || []);
+            setCentroids(stored.centroids || null);
+            setK(stored.k || 3);
+            setIsConverged(stored.converged || false);
+            if (stored.projectedPoints?.length) {
+                setProjectedPoints(hydratedPoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number'));
+                setRestoreProjection(true);
+            }
+            if (stored.uploadedThumbnails?.length) {
+                setUploadedThumbnails(stored.uploadedThumbnails);
             }
         }
-    }, [snapshot]);
+        setIsHydrated(true);
+    }, [snapshot, readOnly]);
+
+    useEffect(() => {
+        if (readOnly || snapshot || !isHydrated) return;
+        const storedPoints = stripUploadedImageUrls(points, uploadedThumbnails);
+        const storedProjection = buildStoredProjection(projectedPoints);
+        const payload: StoredSnapshot = {
+            points: storedPoints,
+            projectedPoints: storedProjection,
+            clusters,
+            centroids,
+            k,
+            converged: isConverged,
+            uploadedThumbnails
+        };
+        saveSnapshot(payload);
+    }, [points, projectedPoints, clusters, centroids, k, isConverged, uploadedThumbnails, readOnly, snapshot, isHydrated]);
 
     useEffect(() => {
         if (points.length === 0) {
@@ -115,6 +295,12 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
 
         if (readOnly && points.every(p => typeof p.x === 'number' && typeof p.y === 'number')) {
             setProjectedPoints(points);
+            return;
+        }
+
+        if (!readOnly && restoreProjection && points.every(p => typeof p.x === 'number' && typeof p.y === 'number')) {
+            setProjectedPoints(points);
+            setRestoreProjection(false);
             return;
         }
 
@@ -155,7 +341,8 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                 setProjectedPoints(newPoints);
             } catch (err: any) {
                 console.error("PCA failed", err);
-                setError(`PCA Calculation Failed: ${err.message}`);
+                const message = localizeErrorMessage(err.message);
+                setError(t('unsupervised.error_pca').replace('{error}', message));
                 // Fallback: Keep centered stacked
                 setProjectedPoints(points.map(p => ({ ...p, x: 0.5, y: 0.5 })));
             }
@@ -206,7 +393,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
 
             // Sanity Check for NaNs
             if (embeddingSync.some(n => isNaN(n) || !isFinite(n))) {
-                throw new Error("Captured embedding contains invalid numbers (NaN/Infinity).");
+                throw new Error(t('unsupervised.error_invalid_embedding'));
             }
 
             const newPoint: DataPoint = {
@@ -221,7 +408,8 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
             setError(null);
         } catch (err: any) {
             console.error("Capture failed", err);
-            setError(`Capture Failed: ${err.message}`);
+            const message = localizeErrorMessage(err.message);
+            setError(t('unsupervised.error_capture').replace('{error}', message));
         }
     };
 
@@ -259,7 +447,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
 
                 // Sanity Check for NaNs
                 if (embeddingSync.some(n => isNaN(n) || !isFinite(n))) {
-                    throw new Error("Embedding contains invalid numbers (NaN/Infinity).");
+                    throw new Error(t('unsupervised.error_invalid_embedding'));
                 }
 
                 const pointId = `${Date.now()}-${i}-${Math.random()}`;
@@ -280,7 +468,8 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                 setUploadProgress({ current: i + 1, total: fileArray.length });
             } catch (err: any) {
                 console.error(`Failed to process file ${file.name}:`, err);
-                setError(`Failed to process ${file.name}: ${err.message}`);
+                const message = localizeErrorMessage(err.message);
+                setError(t('unsupervised.error_process_file').replace('{name}', file.name).replace('{error}', message));
                 // Continue with other files
             }
         }
@@ -356,6 +545,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
         setSelectedPointId(null);
         setUploadedThumbnails([]);
         setUploadProgress(null);
+        clearSnapshot();
     };
 
     // Get color for cluster
@@ -424,7 +614,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                                     : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600"
                             )}
-                            title="Upload images"
+                            title={t('unsupervised.upload_title')}
                         >
                             <Upload className="w-5 h-5" />
                         </button>
@@ -434,7 +624,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                     {isUploading && uploadProgress && (
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-700">Uploading...</span>
+                                <span className="text-sm font-medium text-slate-700">{t('common.uploading')}</span>
                                 <span className="text-sm text-slate-500">
                                     {uploadProgress.current} / {uploadProgress.total}
                                 </span>
@@ -453,13 +643,13 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-slate-900">
-                                    Uploaded Images ({uploadedThumbnails.length})
+                                    {t('unsupervised.uploaded_images')} ({uploadedThumbnails.length})
                                 </h3>
                                 <button
                                     onClick={handleClearThumbnails}
                                     disabled={readOnly}
                                     className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Clear thumbnails"
+                                    title={t('unsupervised.clear_thumbnails')}
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -562,6 +752,27 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                                         />
                                     );
                                 })}
+                                {clusters.map((cluster, idx) => {
+                                    const centroid = cluster.centroid;
+                                    if (!centroid || centroid.length < 2) return null;
+                                    const cx = centroid[0] * 80 + 10;
+                                    const cy = centroid[1] * 80 + 10;
+                                    const size = 4.5;
+                                    return (
+                                        <rect
+                                            key={`centroid-${idx}`}
+                                            x={cx - size / 2}
+                                            y={cy - size / 2}
+                                            width={size}
+                                            height={size}
+                                            fill={getClusterColor(idx)}
+                                            stroke="white"
+                                            strokeWidth="0.6"
+                                            transform={`rotate(45 ${cx} ${cy})`}
+                                            pointerEvents="none"
+                                        />
+                                    );
+                                })}
                             </svg>
 
                             <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs">
@@ -578,7 +789,7 @@ export default function WebcamLab({ readOnly = false, snapshot }: WebcamLabProps
                                             <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider text-center">{t('unsupervised.selected')}</p>
                                             <img
                                                 src={points.find(p => p.id === selectedPointId)?.imageUrl}
-                                                alt="Point Preview"
+                                                alt={t('unsupervised.point_preview_alt')}
                                                 className="w-full h-auto rounded border border-slate-100"
                                             />
                                         </div>

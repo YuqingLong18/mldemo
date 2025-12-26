@@ -35,7 +35,7 @@ export default function TeacherLogin() {
             }
         } catch (err) {
             console.error(err);
-            setError('Connection failed. Is credential DB running?');
+            setError(t('teacher.login_connection_error'));
         } finally {
             setLoading(false);
         }
@@ -48,7 +48,7 @@ export default function TeacherLogin() {
                     onClick={() => navigate('/')}
                     className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Back
+                    <ArrowLeft className="w-4 h-4" /> {t('common.back')}
                 </button>
             </div>
 
@@ -71,7 +71,7 @@ export default function TeacherLogin() {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="username"
+                            placeholder={t('teacher.username')}
                             autoFocus
                         />
                     </div>

@@ -621,15 +621,15 @@ export default function SupervisedLab() {
                                 {featuredStudentName.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <p className="text-sm opacity-90">Viewing Student Model</p>
-                                <p className="text-lg font-bold">{featuredStudentName}'s Model</p>
+                                <p className="text-sm opacity-90">{t('supervised.featured.title')}</p>
+                                <p className="text-lg font-bold">{t('supervised.featured.subtitle').replace('{name}', featuredStudentName)}</p>
                             </div>
                         </div>
                         <button
                             onClick={() => window.history.back()}
                             className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
                         >
-                            Back to Dashboard
+                            {t('nav.return_dashboard')}
                         </button>
                     </div>
                 </div>

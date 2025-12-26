@@ -24,15 +24,15 @@ export default function UnsupervisedLab() {
                                 {featuredStudentName.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <p className="text-sm opacity-90">Viewing Student Clustering</p>
-                                <p className="text-lg font-bold">{featuredStudentName}'s Clusters</p>
+                                <p className="text-sm opacity-90">{t('unsupervised.featured.title')}</p>
+                                <p className="text-lg font-bold">{t('unsupervised.featured.subtitle').replace('{name}', featuredStudentName)}</p>
                             </div>
                         </div>
                         <button
                             onClick={() => window.history.back()}
                             className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
                         >
-                            Back to Dashboard
+                            {t('nav.return_dashboard')}
                         </button>
                     </div>
                 </div>

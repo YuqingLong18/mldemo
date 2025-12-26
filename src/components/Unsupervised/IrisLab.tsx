@@ -142,8 +142,8 @@ export default function IrisLab() {
                     </div>
 
                     <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-sm text-indigo-900">
-                        <strong className="block mb-1 font-semibold">About Iris Dataset</strong>
-                        Famous dataset introduced by Ronald Fisher in 1936. Includes 3 species: Setosa, Versicolor, and Virginica. We are visualizing Petal Length vs Petal Width.
+                        <strong className="block mb-1 font-semibold">{t('unsupervised.iris.about_title')}</strong>
+                        {t('unsupervised.iris.about_body')}
                     </div>
                 </div>
 
@@ -156,7 +156,7 @@ export default function IrisLab() {
                         <div className="flex gap-4 text-xs font-medium">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-3 h-3 rounded-full bg-slate-200" />
-                                <span>Centroid</span>
+                                <span>{t('unsupervised.iris.centroid')}</span>
                             </div>
                         </div>
                     </div>
@@ -168,8 +168,8 @@ export default function IrisLab() {
                             <line x1="0" y1="0" x2="0" y2="100" stroke="#cbd5e1" strokeWidth="1" />
 
                             {/* Axis Labels */}
-                            <text x="50" y="108" textAnchor="middle" fontSize="4" fill="#64748b">Petal Length</text>
-                            <text x="-5" y="50" textAnchor="middle" fontSize="4" fill="#64748b" transform="rotate(-90 -5 50)">Petal Width</text>
+                            <text x="50" y="108" textAnchor="middle" fontSize="4" fill="#64748b">{t('unsupervised.iris.petal_length')}</text>
+                            <text x="-5" y="50" textAnchor="middle" fontSize="4" fill="#64748b" transform="rotate(-90 -5 50)">{t('unsupervised.iris.petal_width')}</text>
 
                             {/* Points */}
                             {points.map((p) => {

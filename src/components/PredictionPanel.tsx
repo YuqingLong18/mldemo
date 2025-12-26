@@ -71,20 +71,20 @@ export default function PredictionPanel({
                                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                     : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                             )}
-                            title="Upload images to predict"
+                            title={t('supervised.prediction.upload_title')}
                         >
                             <Upload className="w-3.5 h-3.5" />
-                            Upload
+                            {t('supervised.prediction.upload')}
                         </button>
                     )}
                     {predictionImages.length > 0 && onClearPredictions && (
                         <button
                             onClick={onClearPredictions}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-slate-50 text-slate-600 hover:bg-slate-100"
-                            title="Clear predictions"
+                            title={t('supervised.prediction.clear_title')}
                         >
                             <X className="w-3.5 h-3.5" />
-                            Clear
+                            {t('supervised.prediction.clear')}
                         </button>
                     )}
                     {isModelTrained && (
@@ -116,7 +116,7 @@ export default function PredictionPanel({
             {/* Uploaded Images Predictions */}
             {predictionImages.length > 0 && (
                 <div className="mb-4 space-y-3">
-                    <h3 className="text-sm font-medium text-slate-700">Uploaded Images</h3>
+                    <h3 className="text-sm font-medium text-slate-700">{t('supervised.prediction.uploaded_images')}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {predictionImages.map((img) => {
                             const topClass = classes.find(c => c.id === img.topLabel);
@@ -153,7 +153,7 @@ export default function PredictionPanel({
             {/* Webcam Live Prediction */}
             {isPredicting && top ? (
                 <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-slate-700">Live Camera Prediction</h3>
+                    <h3 className="text-sm font-medium text-slate-700">{t('supervised.prediction.live_camera')}</h3>
                     {/* Top Result */}
                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-center">
                         <div className="text-sm text-slate-500 mb-1">{t('supervised.prediction.confidence')} {(top.confidence * 100).toFixed(1)}%</div>
@@ -192,7 +192,7 @@ export default function PredictionPanel({
                 <div className="text-center py-8 text-slate-400">
                     <p>{t('supervised.prediction.waiting')}</p>
                     <p className="text-xs mt-1 opacity-70">
-                        {!isModelTrained ? t('supervised.prediction.no_model') : 'Upload images or press Start to predict'}
+                        {!isModelTrained ? t('supervised.prediction.no_model') : t('supervised.prediction.upload_or_start')}
                     </p>
                 </div>
             ) : null}

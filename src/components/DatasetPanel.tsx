@@ -151,7 +151,7 @@ export default function DatasetPanel({
                                     "px-3 py-2 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 transition-colors",
                                     !isModelReady || isTraining || readOnly ? "opacity-50 cursor-not-allowed" : ""
                                 )}
-                                title="Upload Images"
+                                title={t('supervised.dataset.upload_title')}
                             >
                                 <Upload className="w-4 h-4" />
                             </button>
@@ -162,7 +162,7 @@ export default function DatasetPanel({
                 {classes.length === 0 && (
                     <div className="text-center py-8 text-slate-400">
                         <Layers className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm">No classes added.</p>
+                        <p className="text-sm">{t('supervised.dataset.empty')}</p>
                     </div>
                 )}
             </div>
