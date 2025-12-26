@@ -4,6 +4,7 @@ import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import * as tf from '@tensorflow/tfjs';
 import * as knnClassifier from '@tensorflow-models/knn-classifier';
 import { loadMobileNet, getEmbedding } from '../../lib/ml/mobilenet';
+import { processImageFile } from '../../lib/imageUtils';
 import CameraView, { type CameraHandle } from '../../components/CameraView';
 import DatasetPanel from '../../components/DatasetPanel';
 import PredictionPanel from '../../components/PredictionPanel';
@@ -192,6 +193,58 @@ export default function SupervisedLab() {
         setIsPredicting(false);
     };
 
+    // Handle Upload
+    const handleUpload = async (classId: string, files: FileList) => {
+        if (!mobilenetRef.current || !classifierRef.current) return;
+
+        const uploadedThumbnails: string[] = [];
+        let successCount = 0;
+
+        // Process each file
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                // Process the image file
+                const processed = await processImageFile(file);
+                
+                // Get embedding from the image element
+                const embedding = getEmbedding(mobilenetRef.current, processed.element);
+                
+                // Add to classifier
+                classifierRef.current.addExample(embedding, classId);
+                embedding.dispose();
+                
+                // Store thumbnail
+                uploadedThumbnails.push(processed.thumbnail);
+                successCount++;
+            } catch (error) {
+                console.error(`Failed to process file ${file.name}:`, error);
+                // Continue with other files even if one fails
+            }
+        }
+
+        if (successCount > 0) {
+            // Update count and thumbnails
+            setClasses(prev => prev.map(c => {
+                if (c.id === classId) {
+                    // Keep last 5 thumbnails
+                    const newThumbnails = [...c.thumbnails, ...uploadedThumbnails].slice(-5);
+
+                    return {
+                        ...c,
+                        count: c.count + successCount,
+                        thumbnails: newThumbnails
+                    };
+                }
+                return c;
+            }));
+
+            // Reset trained status when new data is added
+            setIsModelTrained(false);
+            setIsPredicting(false);
+        }
+    };
+
     // Train Model (Simulation)
     const handleTrainModel = async () => {
         if (classes.every(c => c.count === 0)) return; // No data
@@ -339,6 +392,7 @@ export default function SupervisedLab() {
                         onAddClass={addClass}
                         onRemoveClass={removeClass}
                         onCapture={handleCapture}
+                        onUpload={handleUpload}
                         onClassNameChange={handleClassNameChange}
                         isModelReady={!isModelLoading}
                         isTraining={isTraining}
