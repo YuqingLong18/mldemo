@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import { Users, Loader2 } from 'lucide-react';
 
@@ -7,6 +8,12 @@ export default function JoinClassModal() {
     const [isOpen, setIsOpen] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [name, setName] = useState('');
+    const location = useLocation();
+
+    // Hide on teacher dashboard
+    if (location.pathname.includes('/teacher')) {
+        return null;
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import { Users, Eye, EyeOff, Activity, LogOut, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
-import LoginPlaceholder from './LoginPlaceholder';
+
 
 export default function TeacherDashboard() {
     const {
@@ -18,8 +18,8 @@ export default function TeacherDashboard() {
         onFeaturedData
     } = useClassroom();
 
-    // Placeholder auth state
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // Placeholder auth state is no longer needed as we use centralized auth
+    // const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
     const navigate = useNavigate();
 
@@ -37,10 +37,6 @@ export default function TeacherDashboard() {
             });
         });
     }, []); // Only bind once
-
-    if (!isAuthenticated) {
-        return <LoginPlaceholder onLogin={() => setIsAuthenticated(true)} />;
-    }
 
     if (!code) {
         return (
