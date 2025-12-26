@@ -135,6 +135,10 @@ export default function SupervisedLab() {
         return () => {
             // Cleanup
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
+            if (classifierRef.current) {
+                classifierRef.current.dispose();
+                classifierRef.current = null;
+            }
         };
     }, []);
 

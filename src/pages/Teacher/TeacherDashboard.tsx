@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClassroom } from '../../lib/classroom/ClassroomContext';
-import { Users, Eye, EyeOff, Activity, LogOut, Trash2 } from 'lucide-react';
+import { Users, Eye, EyeOff, Activity, LogOut, Trash2, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
 
@@ -24,11 +24,13 @@ export default function TeacherDashboard() {
     // Placeholder auth state is no longer needed as we use centralized auth
     // const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
+    const [transferringId, setTransferringId] = useState<string | null>(null);
     const navigate = useNavigate();
 
     // Listen for incoming student model
     useEffect(() => {
         onFeaturedData((data) => {
+            setTransferringId(null); // Clear loading state
             // Navigate to SupervisedLab with data
             navigate('/supervised', {
                 state: {
@@ -40,6 +42,12 @@ export default function TeacherDashboard() {
             });
         });
     }, []); // Only bind once
+
+    const handleRequestModel = (studentId: string) => {
+        if (transferringId) return; // Prevent multiple requests
+        setTransferringId(studentId);
+        requestStudentModel(studentId);
+    };
 
     if (!code) {
         return (
@@ -176,10 +184,25 @@ export default function TeacherDashboard() {
 
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() => requestStudentModel(student.id)}
-                                            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-medium transition-colors border border-indigo-200"
+                                            onClick={() => handleRequestModel(student.id)}
+                                            disabled={!!transferringId}
+                                            className={clsx(
+                                                "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors border flex items-center gap-2",
+                                                transferringId === student.id
+                                                    ? "bg-indigo-100 text-indigo-800 border-indigo-200 cursor-wait"
+                                                    : transferringId
+                                                        ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
+                                                        : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
+                                            )}
                                         >
-                                            {t('teacher.dashboard.feature_student')}
+                                            {transferringId === student.id ? (
+                                                <>
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    {t('teacher.dashboard.feature_student')}...
+                                                </>
+                                            ) : (
+                                                t('teacher.dashboard.feature_student')
+                                            )}
                                         </button>
                                         <button
                                             onClick={() => kickStudent(student.id)}
