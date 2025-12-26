@@ -3,10 +3,12 @@ import * as tf from '@tensorflow/tfjs';
 import { loadMobileNet, getEmbedding } from '../../lib/ml/mobilenet';
 import { kMeans } from '../../lib/ml/kmeans';
 import { computePCA } from '../../lib/ml/pca';
+import { processImageFile } from '../../lib/imageUtils';
 import CameraView, { type CameraHandle } from '../CameraView';
-import { Loader2, Camera, Play, RefreshCw } from 'lucide-react';
+import { Loader2, Camera, Play, RefreshCw, Upload, X } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n';
 import StudentStatusIndicator from '../Classroom/StudentStatusIndicator';
+import clsx from 'clsx';
 
 interface DataPoint {
     id: string;
@@ -29,6 +31,12 @@ export default function WebcamLab() {
     const [isConverged, setIsConverged] = useState(false);
     const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    
+    // Upload state
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+    const [uploadedThumbnails, setUploadedThumbnails] = useState<Array<{ id: string; thumbnail: string; fileName: string }>>([]);
 
     // Load Model
     useEffect(() => {
@@ -151,6 +159,85 @@ export default function WebcamLab() {
         }
     };
 
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0 || !mobilenetRef.current) return;
+
+        setIsUploading(true);
+        setUploadProgress({ current: 0, total: files.length });
+        setError(null);
+
+        const fileArray = Array.from(files);
+        const newPoints: DataPoint[] = [];
+        const newThumbnails: Array<{ id: string; thumbnail: string; fileName: string }> = [];
+
+        // Process each file sequentially
+        for (let i = 0; i < fileArray.length; i++) {
+            const file = fileArray[i];
+            try {
+                console.log(`Processing upload ${i + 1}/${fileArray.length}: ${file.name}`);
+                
+                // Process the image file
+                const processed = await processImageFile(file);
+                
+                // Get embedding from the image element
+                const embeddingTensor = getEmbedding(mobilenetRef.current, processed.element);
+                const embeddingSync = await embeddingTensor.array() as number[];
+                embeddingTensor.dispose();
+
+                // Sanity Check for NaNs
+                if (embeddingSync.some(n => isNaN(n) || !isFinite(n))) {
+                    throw new Error("Embedding contains invalid numbers (NaN/Infinity).");
+                }
+
+                const pointId = `${Date.now()}-${i}-${Math.random()}`;
+                const newPoint: DataPoint = {
+                    id: pointId,
+                    embedding: embeddingSync,
+                    imageUrl: processed.thumbnail
+                };
+
+                newPoints.push(newPoint);
+                newThumbnails.push({
+                    id: pointId,
+                    thumbnail: processed.thumbnail,
+                    fileName: file.name
+                });
+
+                // Update progress
+                setUploadProgress({ current: i + 1, total: fileArray.length });
+            } catch (err: any) {
+                console.error(`Failed to process file ${file.name}:`, err);
+                setError(`Failed to process ${file.name}: ${err.message}`);
+                // Continue with other files
+            }
+        }
+
+        // Add all successfully processed points
+        if (newPoints.length > 0) {
+            setPoints(prev => [...prev, ...newPoints]);
+            setUploadedThumbnails(prev => [...prev, ...newThumbnails]);
+            // Clear clusters when new data added
+            setClusters([]);
+            setCentroids(null);
+            setIsConverged(false);
+        }
+
+        setIsUploading(false);
+        setUploadProgress(null);
+        
+        // Reset input
+        e.target.value = '';
+    };
+
+    const handleClearThumbnails = () => {
+        setUploadedThumbnails([]);
+    };
+
     const handleCluster = () => {
         if (points.length < k) return;
 
@@ -196,6 +283,8 @@ export default function WebcamLab() {
         setCentroids(null);
         setIsConverged(false);
         setSelectedPointId(null);
+        setUploadedThumbnails([]);
+        setUploadProgress(null);
     };
 
     // Get color for cluster
@@ -235,14 +324,90 @@ export default function WebcamLab() {
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-center">
                         <CameraView ref={cameraRef} />
                     </div>
-                    <button
-                        onClick={handleCapture}
-                        disabled={isModelLoading}
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Camera className="w-5 h-5" />
-                        {t('unsupervised.capture')} ({points.length})
-                    </button>
+                    
+                    <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                    />
+                    
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleCapture}
+                            disabled={isModelLoading || isUploading}
+                            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Camera className="w-5 h-5" />
+                            {t('unsupervised.capture')} ({points.length})
+                        </button>
+                        <button
+                            onClick={handleUploadClick}
+                            disabled={isModelLoading || isUploading}
+                            className={clsx(
+                                "px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors",
+                                isModelLoading || isUploading
+                                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                    : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-600"
+                            )}
+                            title="Upload images"
+                        >
+                            <Upload className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Upload Progress */}
+                    {isUploading && uploadProgress && (
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-slate-700">Uploading...</span>
+                                <span className="text-sm text-slate-500">
+                                    {uploadProgress.current} / {uploadProgress.total}
+                                </span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                <div
+                                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Uploaded Thumbnails */}
+                    {uploadedThumbnails.length > 0 && (
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-slate-900">
+                                    Uploaded Images ({uploadedThumbnails.length})
+                                </h3>
+                                <button
+                                    onClick={handleClearThumbnails}
+                                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Clear thumbnails"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                                {uploadedThumbnails.map((thumb) => (
+                                    <div
+                                        key={thumb.id}
+                                        className="relative aspect-square bg-slate-100 rounded border border-slate-200 overflow-hidden"
+                                    >
+                                        <img
+                                            src={thumb.thumbnail}
+                                            alt={thumb.fileName}
+                                            className="w-full h-full object-cover"
+                                            title={thumb.fileName}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
                         <h3 className="font-semibold text-slate-900">{t('unsupervised.clustering_controls')}</h3>
