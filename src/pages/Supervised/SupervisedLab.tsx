@@ -61,6 +61,7 @@ export default function SupervisedLab() {
     const location = useLocation();
     const { onRequestModel, sendModelData } = useClassroom();
     const FEATURED_MODE = location.state?.featured;
+    const featuredStudentName = location.state?.studentName;
 
     // Initialize Model and Classifier
     useEffect(() => {
@@ -125,22 +126,37 @@ export default function SupervisedLab() {
         init();
 
         // Listen for teacher requests
-        onRequestModel(() => {
-            if (classifierRef.current && classifierRef.current.getNumClasses() > 0) {
+        onRequestModel(async () => {
+            try {
+                if (!classifierRef.current || classifierRef.current.getNumClasses() === 0) {
+                    // Send empty response to indicate no model available
+                    sendModelData({}, {});
+                    return;
+                }
+
                 const dataset = classifierRef.current.getClassifierDataset();
                 const serializableDataset: { [label: string]: any } = {};
 
-                Object.entries(dataset).forEach(([label, tensor]) => {
-                    serializableDataset[label] = tensor.arraySync();
+                // Serialize tensors asynchronously to avoid blocking
+                // Use array() instead of arraySync() for better performance
+                const serializationPromises = Object.entries(dataset).map(async ([label, tensor]) => {
+                    const array = await tensor.array();
+                    serializableDataset[label] = array;
                 });
 
-                // Prepare thumbnails map
+                await Promise.all(serializationPromises);
+
+                // Prepare thumbnails map (limit to last 5 per class to reduce payload size)
                 const thumbnailsMap: { [id: string]: string[] } = {};
                 classes.forEach(c => {
-                    thumbnailsMap[c.id] = c.thumbnails;
+                    thumbnailsMap[c.id] = c.thumbnails.slice(-5); // Only send last 5 thumbnails
                 });
 
                 sendModelData(thumbnailsMap, serializableDataset);
+            } catch (error) {
+                console.error("Error sending model data:", error);
+                // Send empty response on error
+                sendModelData({}, {});
             }
         });
 
@@ -447,6 +463,30 @@ export default function SupervisedLab() {
                 status={currentStatus}
                 metrics={{ samples: totalSamples, accuracy: isModelTrained ? 1.0 : 0 }}
             />
+            
+            {/* Featured Student Banner */}
+            {FEATURED_MODE && featuredStudentName && (
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4 rounded-xl shadow-lg border border-indigo-300">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">
+                                {featuredStudentName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <p className="text-sm opacity-90">Viewing Student Model</p>
+                                <p className="text-lg font-bold">{featuredStudentName}'s Model</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => window.history.back()}
+                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            )}
+            
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-slate-900">{t('supervised.title')}</h1>
                 {isModelLoading && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClassroom } from '../../lib/classroom/ClassroomContext';
 import { Users, Eye, EyeOff, Activity, LogOut, Trash2, Loader2 } from 'lucide-react';
@@ -25,12 +25,29 @@ export default function TeacherDashboard() {
     // const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
     const [transferringId, setTransferringId] = useState<string | null>(null);
+    const transferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const navigate = useNavigate();
 
     // Listen for incoming student model
     useEffect(() => {
-        onFeaturedData((data) => {
+        const handleFeaturedData = (data: any) => {
+            // Clear any pending timeout
+            if (transferTimeoutRef.current) {
+                clearTimeout(transferTimeoutRef.current);
+                transferTimeoutRef.current = null;
+            }
+            
             setTransferringId(null); // Clear loading state
+            
+            // Check if student has a trained model
+            const hasData = data.dataset && Object.keys(data.dataset).length > 0;
+            
+            if (!hasData) {
+                // Show error message - student doesn't have a trained model
+                alert(`Student "${data.studentName || 'Unknown'}" doesn't have a trained model yet. Please ask them to train their model first.`);
+                return;
+            }
+            
             // Navigate to SupervisedLab with data
             navigate('/supervised', {
                 state: {
@@ -40,13 +57,34 @@ export default function TeacherDashboard() {
                     dataset: data.dataset
                 }
             });
-        });
-    }, []); // Only bind once
+        };
+        
+        onFeaturedData(handleFeaturedData);
+        
+        return () => {
+            if (transferTimeoutRef.current) {
+                clearTimeout(transferTimeoutRef.current);
+            }
+        };
+    }, [navigate, onFeaturedData]);
 
     const handleRequestModel = (studentId: string) => {
         if (transferringId) return; // Prevent multiple requests
+        
+        // Clear any existing timeout
+        if (transferTimeoutRef.current) {
+            clearTimeout(transferTimeoutRef.current);
+        }
+        
         setTransferringId(studentId);
         requestStudentModel(studentId);
+        
+        // Set a timeout (10 seconds) - if no response, clear loading state
+        transferTimeoutRef.current = setTimeout(() => {
+            setTransferringId(null);
+            transferTimeoutRef.current = null;
+            alert('Request timed out. The student may not have a trained model or may be experiencing connection issues.');
+        }, 10000);
     };
 
     if (!code) {
