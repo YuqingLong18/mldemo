@@ -199,12 +199,18 @@ export default function SupervisedLab() {
 
         const uploadedThumbnails: string[] = [];
         let successCount = 0;
+        const errors: string[] = [];
 
-        // Process each file
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+        // Convert FileList to Array for easier iteration
+        const fileArray = Array.from(files);
+        console.log(`Processing ${fileArray.length} file(s) for class ${classId}`);
+
+        // Process each file sequentially to avoid overwhelming the browser
+        for (const file of fileArray) {
             try {
-                // Process the image file
+                console.log(`Processing file: ${file.name}`);
+                
+                // Process the image file (this already waits for image to load)
                 const processed = await processImageFile(file);
                 
                 // Get embedding from the image element
@@ -217,11 +223,17 @@ export default function SupervisedLab() {
                 // Store thumbnail
                 uploadedThumbnails.push(processed.thumbnail);
                 successCount++;
+                
+                console.log(`Successfully processed: ${file.name}`);
             } catch (error) {
-                console.error(`Failed to process file ${file.name}:`, error);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error(`Failed to process file ${file.name}:`, errorMsg);
+                errors.push(`${file.name}: ${errorMsg}`);
                 // Continue with other files even if one fails
             }
         }
+
+        console.log(`Upload complete: ${successCount} successful, ${errors.length} failed`);
 
         if (successCount > 0) {
             // Update count and thumbnails
@@ -242,6 +254,11 @@ export default function SupervisedLab() {
             // Reset trained status when new data is added
             setIsModelTrained(false);
             setIsPredicting(false);
+        }
+
+        // Log errors if any
+        if (errors.length > 0) {
+            console.warn('Upload errors:', errors);
         }
     };
 
