@@ -23,6 +23,16 @@ export interface ClassInfo {
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+// State for uploaded prediction images
+export interface PredictionImage {
+    id: string;
+    thumbnail: string;
+    fileName: string;
+    predictions: { label: string, confidence: number }[];
+    topLabel: string;
+    topConfidence: number;
+}
+
 export default function SupervisedLab() {
     const { t } = useLanguage();
     const cameraRef = useRef<CameraHandle>(null);
@@ -39,6 +49,7 @@ export default function SupervisedLab() {
     const [isTraining, setIsTraining] = useState(false);
     const [isModelTrained, setIsModelTrained] = useState(false);
     const requestRef = useRef<number | undefined>(undefined);
+    const [predictionImages, setPredictionImages] = useState<PredictionImage[]>([]);
 
     // Calculate metrics for classroom
     const totalSamples = classes.reduce((sum, c) => sum + c.count, 0);
@@ -262,6 +273,71 @@ export default function SupervisedLab() {
         }
     };
 
+    // Handle Prediction Upload
+    const handlePredictUpload = async (files: FileList) => {
+        if (!mobilenetRef.current || !classifierRef.current || !isModelTrained) {
+            console.warn('Model not ready or not trained');
+            return;
+        }
+
+        const fileArray = Array.from(files);
+        console.log(`Processing ${fileArray.length} image(s) for prediction`);
+
+        const newPredictionImages: PredictionImage[] = [];
+
+        // Process each file sequentially
+        for (const file of fileArray) {
+            try {
+                console.log(`Predicting on file: ${file.name}`);
+                
+                // Process the image file
+                const processed = await processImageFile(file);
+                
+                // Get embedding from the image element
+                const embedding = getEmbedding(mobilenetRef.current, processed.element);
+                
+                // Predict
+                const result = await classifierRef.current.predictClass(embedding);
+                const confidences = Object.entries(result.confidences).map(([label, confidence]) => ({
+                    label,
+                    confidence: confidence as number
+                }));
+                
+                // Sort by confidence
+                const sorted = [...confidences].sort((a, b) => b.confidence - a.confidence);
+                const top = sorted[0];
+                
+                // Create prediction image entry
+                const predictionImage: PredictionImage = {
+                    id: `${Date.now()}-${Math.random()}`,
+                    thumbnail: processed.thumbnail,
+                    fileName: file.name,
+                    predictions: confidences,
+                    topLabel: top.label,
+                    topConfidence: top.confidence
+                };
+                
+                newPredictionImages.push(predictionImage);
+                embedding.dispose();
+                
+                console.log(`Successfully predicted: ${file.name} -> ${top.label} (${(top.confidence * 100).toFixed(1)}%)`);
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error(`Failed to predict on file ${file.name}:`, errorMsg);
+            }
+        }
+
+        // Add new prediction images to state
+        if (newPredictionImages.length > 0) {
+            setPredictionImages(prev => [...prev, ...newPredictionImages]);
+        }
+    };
+
+    // Clear prediction images
+    const handleClearPredictions = () => {
+        setPredictionImages([]);
+    };
+
     // Train Model (Simulation)
     const handleTrainModel = async () => {
         if (classes.every(c => c.count === 0)) return; // No data
@@ -394,6 +470,10 @@ export default function SupervisedLab() {
                         isPredicting={isPredicting}
                         isModelTrained={isModelTrained}
                         onTogglePrediction={togglePrediction}
+                        predictionImages={predictionImages}
+                        onPredictUpload={handlePredictUpload}
+                        onClearPredictions={handleClearPredictions}
+                        isModelReady={!isModelLoading}
                     />
 
                     <div className="p-4 bg-indigo-50 text-indigo-900 rounded-lg text-sm border border-indigo-100">
