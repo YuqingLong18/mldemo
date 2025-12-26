@@ -1,7 +1,8 @@
-import { Trash2, Plus, Camera, Layers, Brain, Loader2, CheckCircle2 } from 'lucide-react';
+import { Trash2, Plus, Camera, Layers, Brain, Loader2, CheckCircle2, Upload } from 'lucide-react';
 import clsx from 'clsx';
 import { type ClassInfo } from '../pages/Supervised/SupervisedLab';
 import { useLanguage } from '../lib/i18n';
+import { useRef } from 'react';
 
 interface DatasetPanelProps {
     classes: ClassInfo[];
@@ -9,6 +10,7 @@ interface DatasetPanelProps {
     onAddClass: () => void;
     onRemoveClass: (id: string) => void;
     onCapture: (id: string) => void;
+    onUpload?: (id: string, files: FileList) => void;
     onClassNameChange: (id: string, newName: string) => void;
     isModelReady: boolean;
     isTraining: boolean;
@@ -21,6 +23,7 @@ export default function DatasetPanel({
     onAddClass,
     onRemoveClass,
     onCapture,
+    onUpload,
     onClassNameChange,
     isModelReady,
     isTraining,
@@ -28,12 +31,37 @@ export default function DatasetPanel({
     onTrainModel
 }: DatasetPanelProps) {
     const { t } = useLanguage();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const uploadingClassId = useRef<string | null>(null);
 
     const totalExamples = classes.reduce((sum, c) => sum + c.count, 0);
     const hasData = totalExamples > 0;
 
+    const handleUploadClick = (classId: string) => {
+        uploadingClassId.current = classId;
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0 && uploadingClassId.current && onUpload) {
+            onUpload(uploadingClassId.current, files);
+        }
+        // Reset input
+        e.target.value = '';
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+            <input
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+            />
+
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <div>
                     <h2 className="font-semibold text-slate-900">{t('supervised.dataset.title')}</h2>
@@ -92,13 +120,13 @@ export default function DatasetPanel({
                             </div>
                         )}
 
-                        {/* Capture Button */}
-                        <div className="p-2 bg-white border-t border-slate-100">
+                        {/* Capture & Upload Buttons */}
+                        <div className="p-2 bg-white border-t border-slate-100 flex gap-2">
                             <button
                                 onMouseDown={() => onCapture(c.id)}
                                 disabled={!isModelReady || isTraining}
                                 className={clsx(
-                                    "w-full py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95",
+                                    "flex-1 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-95",
                                     !isModelReady || isTraining
                                         ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                         : "bg-white border border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm hover:shadow"
@@ -106,6 +134,17 @@ export default function DatasetPanel({
                             >
                                 <Camera className="w-4 h-4" />
                                 {t('supervised.class.add_example')}
+                            </button>
+                            <button
+                                onClick={() => handleUploadClick(c.id)}
+                                disabled={!isModelReady || isTraining}
+                                className={clsx(
+                                    "px-3 py-2 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 transition-colors",
+                                    !isModelReady || isTraining ? "opacity-50 cursor-not-allowed" : ""
+                                )}
+                                title="Upload Images"
+                            >
+                                <Upload className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
@@ -154,3 +193,4 @@ export default function DatasetPanel({
         </div>
     );
 }
+
