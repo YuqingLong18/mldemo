@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { Camera, Brain, Layers, Info, Globe } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Camera, Brain, Layers, Info, Globe, LayoutDashboard } from 'lucide-react';
+import { useClassroom } from '../lib/classroom/ClassroomContext';
 import clsx from 'clsx';
 import { useLanguage } from '../lib/i18n';
 
@@ -8,6 +9,12 @@ import AttentionOverlay from './Classroom/AttentionOverlay';
 
 export default function Layout() {
     const { t, language, setLanguage } = useLanguage();
+    const { isTeacher } = useClassroom();
+    const location = useLocation();
+
+    // Determine if we are in a "Teacher Context"
+    // Either strictly by isTeacher state, or by URL path heuristic if reload happened
+    const isTeacherRoute = isTeacher || location.pathname.startsWith('/teacher');
     // We can also use useClassroom here to get status for indicator if needed
     // But StudentStatusIndicator handles it loosely
 
@@ -49,17 +56,31 @@ export default function Layout() {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1">
-                    <NavLink
-                        to="/"
-                        end
-                        className={({ isActive }) => clsx(
-                            "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                            isActive ? "bg-indigo-600 text-white" : "hover:bg-slate-800 hover:text-white"
-                        )}
-                    >
-                        <Info className="w-5 h-5" />
-                        <span>{t('nav.home')}</span>
-                    </NavLink>
+                    {isTeacherRoute ? (
+                        <NavLink
+                            to="/teacher/dashboard"
+                            className={({ isActive }) => clsx(
+                                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                                isActive ? "bg-indigo-600 text-white" : "hover:bg-slate-800 hover:text-white"
+                            )}
+                        >
+                            <LayoutDashboard className="w-5 h-5" />
+                            <span>{t('nav.return_dashboard')}</span>
+                        </NavLink>
+                    ) : (
+                        <NavLink
+                            to="/home"
+                            end // /home is unique, so end is fine
+                            className={({ isActive }) => clsx(
+                                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                                isActive ? "bg-indigo-600 text-white" : "hover:bg-slate-800 hover:text-white"
+                            )}
+                        >
+                            <Info className="w-5 h-5" />
+                            <span>{t('nav.home')}</span>
+                        </NavLink>
+                    )}
+
 
                     <NavLink
                         to="/supervised"

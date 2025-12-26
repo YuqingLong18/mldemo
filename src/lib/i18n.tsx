@@ -14,6 +14,7 @@ const translations: Translations = {
     'nav.supervised': { zh: '监督学习', en: 'Supervised Learning' },
     'nav.unsupervised': { zh: '无监督学习', en: 'Unsupervised Learning' },
     'nav.home': { zh: '首页', en: 'Home' },
+    'nav.return_dashboard': { zh: '返回教师面板', en: 'Return to Teacher Dashboard' },
     'footer.credits': { zh: '基于 TensorFlow.js 构建', en: 'Built with TensorFlow.js' },
 
     // Auth - Teacher
