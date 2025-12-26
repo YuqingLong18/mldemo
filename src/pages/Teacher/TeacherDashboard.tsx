@@ -5,7 +5,10 @@ import { Users, Eye, EyeOff, Activity, LogOut, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 
 
+import { useLanguage } from '../../lib/i18n';
+
 export default function TeacherDashboard() {
+    const { t } = useLanguage();
     const {
         createRoom,
         code,
@@ -42,8 +45,8 @@ export default function TeacherDashboard() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-bold text-slate-900">Teacher Dashboard</h1>
-                    <p className="text-slate-500">Create a classroom session to get started.</p>
+                    <h1 className="text-3xl font-bold text-slate-900">{t('teacher.dashboard.title')}</h1>
+                    <p className="text-slate-500">{t('teacher.dashboard.subtitle')}</p>
                 </div>
                 <div className="flex gap-4">
                     <button
@@ -51,14 +54,14 @@ export default function TeacherDashboard() {
                         className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-3"
                     >
                         <Users className="w-6 h-6" />
-                        Create Classroom
+                        {t('teacher.dashboard.create_btn')}
                     </button>
                     <button
                         onClick={() => navigate('/home')}
                         className="px-8 py-4 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 text-lg font-semibold rounded-xl shadow-sm transition-all flex items-center gap-3"
                     >
                         <Activity className="w-6 h-6" />
-                        Go to Demo
+                        {t('teacher.dashboard.demo_btn')}
                     </button>
                 </div>
             </div>
@@ -70,13 +73,13 @@ export default function TeacherDashboard() {
             {/* Header / Room Info */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="text-center md:text-left">
-                    <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Classroom Code</h2>
+                    <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wider">{t('teacher.dashboard.code_label')}</h2>
                     <div className="text-5xl font-mono font-bold text-indigo-600 tracking-widest my-2 select-all cursor-pointer" title="Click to copy">
                         {code}
                     </div>
                     <p className="text-sm text-slate-600 flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        {students.length} Students Joined
+                        {students.length} {t('teacher.dashboard.students_joined')}
                     </p>
                 </div>
 
@@ -85,7 +88,7 @@ export default function TeacherDashboard() {
                         onClick={() => navigate('/home')}
                         className="px-4 py-3 bg-white border border-slate-200 text-slate-600 font-medium rounded-xl hover:text-indigo-600 hover:border-indigo-200 transition-colors"
                     >
-                        Go to Demo
+                        {t('teacher.dashboard.demo_btn')}
                     </button>
                     <button
                         onClick={() => toggleAttention(!attentionMode)}
@@ -96,8 +99,9 @@ export default function TeacherDashboard() {
                                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                         )}
                     >
+
                         {attentionMode ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                        {attentionMode ? "ATTENTION MODE ON" : "Turn On Attention Mode"}
+                        {attentionMode ? t('teacher.dashboard.attention_on') : t('teacher.dashboard.attention_off')}
                     </button>
 
                     <button
@@ -121,8 +125,9 @@ export default function TeacherDashboard() {
                             : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
                     )}
                 >
+
                     <Users className="w-4 h-4" />
-                    Roster
+                    {t('teacher.dashboard.tab.roster')}
                 </button>
                 <button
                     onClick={() => setActiveTab('monitoring')}
@@ -133,8 +138,9 @@ export default function TeacherDashboard() {
                             : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
                     )}
                 >
+
                     <Activity className="w-4 h-4" />
-                    Monitoring
+                    {t('teacher.dashboard.tab.monitoring')}
                 </button>
             </div>
 
@@ -145,7 +151,7 @@ export default function TeacherDashboard() {
                         {students.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                                 <Users className="w-12 h-12 mb-4 opacity-20" />
-                                <p>Waiting for students to join with code <span className="font-mono font-bold text-slate-600">{code}</span>...</p>
+                                <p>{t('teacher.dashboard.waiting')} <span className="font-mono font-bold text-slate-600">{code}</span>...</p>
                             </div>
                         ) : (
                             students.map(student => (
@@ -173,12 +179,12 @@ export default function TeacherDashboard() {
                                             onClick={() => requestStudentModel(student.id)}
                                             className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-medium transition-colors border border-indigo-200"
                                         >
-                                            Feature Student
+                                            {t('teacher.dashboard.feature_student')}
                                         </button>
                                         <button
                                             onClick={() => kickStudent(student.id)}
                                             className="text-slate-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition-colors"
-                                            title="Kick Student"
+                                            title={t('teacher.dashboard.kick_student')}
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -203,24 +209,24 @@ export default function TeacherDashboard() {
 
                                 <div className="space-y-2 text-sm text-slate-600">
                                     <div className="flex justify-between">
-                                        <span>Status:</span>
+                                        <span>{t('teacher.dashboard.status')}</span>
                                         <span className="font-medium text-slate-900 capitalize">{student.status}</span>
                                     </div>
                                     {student.metrics?.samples !== undefined && (
                                         <div className="flex justify-between">
-                                            <span>Samples:</span>
+                                            <span>{t('teacher.dashboard.samples')}</span>
                                             <span className="font-medium">{student.metrics.samples}</span>
                                         </div>
                                     )}
                                     {student.metrics?.accuracy !== undefined && (
                                         <div className="flex justify-between">
-                                            <span>Accuracy:</span>
+                                            <span>{t('teacher.dashboard.accuracy')}</span>
                                             <span className="font-medium text-emerald-600">{(student.metrics.accuracy * 100).toFixed(1)}%</span>
                                         </div>
                                     )}
                                     {student.metrics?.k !== undefined && (
                                         <div className="flex justify-between">
-                                            <span>K-Clusters:</span>
+                                            <span>{t('teacher.dashboard.k_clusters')}</span>
                                             <span className="font-medium">{student.metrics.k}</span>
                                         </div>
                                     )}

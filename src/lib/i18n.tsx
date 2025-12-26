@@ -24,6 +24,25 @@ const translations: Translations = {
     'teacher.login_btn': { zh: '登录', en: 'Login' },
     'teacher.login_error': { zh: '凭据无效，请重试。', en: 'Invalid credentials. Please try again.' },
 
+    // Teacher Dashboard
+    'teacher.dashboard.title': { zh: '教师面板', en: 'Teacher Dashboard' },
+    'teacher.dashboard.subtitle': { zh: '创建课堂会话以开始。', en: 'Create a classroom session to get started.' },
+    'teacher.dashboard.create_btn': { zh: '创建课堂', en: 'Create Classroom' },
+    'teacher.dashboard.demo_btn': { zh: '演示模式', en: 'Go to Demo' },
+    'teacher.dashboard.code_label': { zh: '房间代码', en: 'Classroom Code' },
+    'teacher.dashboard.students_joined': { zh: '名学生已加入', en: 'Students Joined' },
+    'teacher.dashboard.waiting': { zh: '等待学生加入，代码：', en: 'Waiting for students to join with code ' },
+    'teacher.dashboard.attention_on': { zh: '专注模式已开启', en: 'ATTENTION MODE ON' },
+    'teacher.dashboard.attention_off': { zh: '开启专注模式', en: 'Turn On Attention Mode' },
+    'teacher.dashboard.tab.roster': { zh: '花名册', en: 'Roster' },
+    'teacher.dashboard.tab.monitoring': { zh: '监控', en: 'Monitoring' },
+    'teacher.dashboard.feature_student': { zh: '展示学生', en: 'Feature Student' },
+    'teacher.dashboard.kick_student': { zh: '踢出学生', en: 'Kick Student' },
+    'teacher.dashboard.status': { zh: '状态:', en: 'Status:' },
+    'teacher.dashboard.samples': { zh: '样本数:', en: 'Samples:' },
+    'teacher.dashboard.accuracy': { zh: '准确率:', en: 'Accuracy:' },
+    'teacher.dashboard.k_clusters': { zh: 'K-聚类:', en: 'K-Clusters:' },
+
     // Auth - Student
     'student.login_title': { zh: '加入课堂', en: 'Join Classroom' },
     'student.login_subtitle': { zh: '输入房间代码和您的名字以加入。', en: 'Enter the room code and your name to join.' },
