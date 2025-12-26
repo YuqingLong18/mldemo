@@ -33,6 +33,60 @@ export interface PredictionImage {
     topConfidence: number;
 }
 
+// Session storage key for model persistence
+const MODEL_STORAGE_KEY = 'supervised_lab_model';
+
+// Helper to save model state to sessionStorage
+const saveModelToStorage = async (
+    classifier: knnClassifier.KNNClassifier,
+    classes: ClassInfo[]
+) => {
+    try {
+        const dataset = classifier.getClassifierDataset();
+        const serializableDataset: { [label: string]: any } = {};
+
+        // Serialize tensors asynchronously
+        const serializationPromises = Object.entries(dataset).map(async ([label, tensor]) => {
+            const array = await tensor.array();
+            serializableDataset[label] = array;
+        });
+
+        await Promise.all(serializationPromises);
+
+        const modelData = {
+            classes,
+            dataset: serializableDataset,
+            timestamp: Date.now()
+        };
+
+        sessionStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(modelData));
+    } catch (error) {
+        console.error("Failed to save model to storage:", error);
+    }
+};
+
+// Helper to load model state from sessionStorage
+const loadModelFromStorage = (): { classes: ClassInfo[], dataset: any } | null => {
+    try {
+        const stored = sessionStorage.getItem(MODEL_STORAGE_KEY);
+        if (!stored) return null;
+
+        const modelData = JSON.parse(stored);
+        return {
+            classes: modelData.classes,
+            dataset: modelData.dataset
+        };
+    } catch (error) {
+        console.error("Failed to load model from storage:", error);
+        return null;
+    }
+};
+
+// Helper to clear model from storage
+const clearModelStorage = () => {
+    sessionStorage.removeItem(MODEL_STORAGE_KEY);
+};
+
 export default function SupervisedLab() {
     const { t } = useLanguage();
     const cameraRef = useRef<CameraHandle>(null);
@@ -76,7 +130,7 @@ export default function SupervisedLab() {
             const classifier = (knnClassifier as any).create();
             classifierRef.current = classifier;
 
-            // Load Featured Data if available
+            // Load Featured Data if available (takes priority over stored model)
             if (FEATURED_MODE && location.state?.dataset) {
                 try {
                     const dataset = location.state.dataset;
@@ -90,12 +144,6 @@ export default function SupervisedLab() {
 
                     if (location.state.thumbnails) {
                         // Reconstruct classes from thumbnails and dataset keys
-                        // This is a bit tricky as we need to map id back to ClassInfo structure
-                        // For simplicity, we might just overwrite classes based on what we have
-                        // But we don't send full ClassInfo structure....
-                        // Let's assume standard class IDs '0', '1'... or just rely on what we sent.
-                        // Actually, we pass thumbnails map.
-
                         const newClasses = classes.map(c => {
                             if (location.state.thumbnails[c.id]) {
                                 const thumbs = location.state.thumbnails[c.id];
@@ -118,6 +166,26 @@ export default function SupervisedLab() {
                     }
                 } catch (e) {
                     console.error("Failed to load featured model", e);
+                }
+            } else {
+                // Try to load persisted model from sessionStorage
+                const storedModel = loadModelFromStorage();
+                if (storedModel && Object.keys(storedModel.dataset).length > 0) {
+                    try {
+                        const tensorDataset: { [label: string]: tf.Tensor2D } = {};
+                        
+                        Object.entries(storedModel.dataset).forEach(([label, data]) => {
+                            tensorDataset[label] = tf.tensor(data as any);
+                        });
+
+                        classifier.setClassifierDataset(tensorDataset);
+                        setClasses(storedModel.classes);
+                        setIsModelTrained(true);
+                        console.log("Restored model from session storage");
+                    } catch (e) {
+                        console.error("Failed to restore model from storage:", e);
+                        clearModelStorage(); // Clear corrupted data
+                    }
                 }
             }
 
@@ -167,6 +235,8 @@ export default function SupervisedLab() {
                 classifierRef.current.dispose();
                 classifierRef.current = null;
             }
+            // Don't clear storage on unmount - we want it to persist across navigation
+            // Storage will be cleared automatically when tab/window closes (sessionStorage behavior)
         };
     }, []);
 
@@ -199,21 +269,32 @@ export default function SupervisedLab() {
         embedding.dispose();
 
         // Update count and thumbnails without mutating state directly
-        setClasses(prev => prev.map(c => {
-            if (c.id === classId) {
-                // Keep last 5 thumbnails
-                const newThumbnails = imageUrl
-                    ? [...c.thumbnails, imageUrl].slice(-5)
-                    : c.thumbnails;
+        setClasses(prev => {
+            const updated = prev.map(c => {
+                if (c.id === classId) {
+                    // Keep last 5 thumbnails
+                    const newThumbnails = imageUrl
+                        ? [...c.thumbnails, imageUrl].slice(-5)
+                        : c.thumbnails;
 
-                return {
-                    ...c,
-                    count: c.count + 1,
-                    thumbnails: newThumbnails
-                };
+                    return {
+                        ...c,
+                        count: c.count + 1,
+                        thumbnails: newThumbnails
+                    };
+                }
+                return c;
+            });
+            
+            // Save updated state to storage
+            if (classifierRef.current) {
+                setTimeout(async () => {
+                    await saveModelToStorage(classifierRef.current!, updated);
+                }, 100);
             }
-            return c;
-        }));
+            
+            return updated;
+        });
 
         // Reset trained status when new data is added
         setIsModelTrained(false);
@@ -264,19 +345,30 @@ export default function SupervisedLab() {
 
         if (successCount > 0) {
             // Update count and thumbnails
-            setClasses(prev => prev.map(c => {
-                if (c.id === classId) {
-                    // Keep last 5 thumbnails
-                    const newThumbnails = [...c.thumbnails, ...uploadedThumbnails].slice(-5);
+            setClasses(prev => {
+                const updated = prev.map(c => {
+                    if (c.id === classId) {
+                        // Keep last 5 thumbnails
+                        const newThumbnails = [...c.thumbnails, ...uploadedThumbnails].slice(-5);
 
-                    return {
-                        ...c,
-                        count: c.count + successCount,
-                        thumbnails: newThumbnails
-                    };
+                        return {
+                            ...c,
+                            count: c.count + successCount,
+                            thumbnails: newThumbnails
+                        };
+                    }
+                    return c;
+                });
+                
+                // Save updated state to storage
+                if (classifierRef.current) {
+                    setTimeout(async () => {
+                        await saveModelToStorage(classifierRef.current!, updated);
+                    }, 100);
                 }
-                return c;
-            }));
+                
+                return updated;
+            });
 
             // Reset trained status when new data is added
             setIsModelTrained(false);
@@ -366,6 +458,11 @@ export default function SupervisedLab() {
 
         setIsTraining(false);
         setIsModelTrained(true);
+        
+        // Save model to sessionStorage after training
+        if (classifierRef.current) {
+            await saveModelToStorage(classifierRef.current, classes);
+        }
     };
 
     const togglePrediction = (shouldPredict: boolean) => {
@@ -452,9 +549,20 @@ export default function SupervisedLab() {
     };
 
     const handleClassNameChange = (id: string, newName: string) => {
-        setClasses(prev => prev.map(c =>
-            c.id === id ? { ...c, name: newName } : c
-        ));
+        setClasses(prev => {
+            const updated = prev.map(c =>
+                c.id === id ? { ...c, name: newName } : c
+            );
+            
+            // Save updated classes to storage
+            if (classifierRef.current) {
+                setTimeout(async () => {
+                    await saveModelToStorage(classifierRef.current!, updated);
+                }, 100);
+            }
+            
+            return updated;
+        });
     };
 
     return (
