@@ -9,6 +9,7 @@ const server = createServer(app);
 
 // Allow CORS for local development
 const io = new Server(server, {
+    maxHttpBufferSize: 50 * 1024 * 1024, // 50MB
     cors: {
         origin: "*", // Adjust in production
         methods: ["GET", "POST"]
