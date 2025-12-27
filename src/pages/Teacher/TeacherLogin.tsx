@@ -1,16 +1,28 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../lib/i18n';
 import { Shield, Loader2, ArrowLeft } from 'lucide-react';
+import {
+    isTeacherAuthenticated,
+    setTeacherAuth,
+    verifyTeacherCredentials
+} from '../../lib/teacherAuth';
 
 export default function TeacherLogin() {
     const { t } = useLanguage();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isTeacherAuthenticated()) {
+            navigate('/teacher/dashboard', { replace: true });
+        }
+    }, [navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -18,24 +30,29 @@ export default function TeacherLogin() {
         setError('');
 
         try {
-            // Call NexusIndex API
-            const response = await fetch('http://localhost:3000/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
+            const normalizedUsername = username.trim();
+            const result = await verifyTeacherCredentials(normalizedUsername, password);
 
-            const data = await response.json();
-
-            if (data.success) {
-                // Login successful
-                navigate('/teacher/dashboard', { replace: true });
-            } else {
-                setError(t('teacher.login_error'));
+            if (result.ok) {
+                setTeacherAuth({
+                    username: result.user?.username || normalizedUsername,
+                    loggedInAt: Date.now()
+                });
+                const state = location.state as { from?: string } | null;
+                const from = state?.from;
+                const nextPath =
+                    typeof from === 'string' && from.startsWith('/teacher')
+                        ? from
+                        : '/teacher/dashboard';
+                navigate(nextPath, { replace: true });
+                return;
             }
-        } catch (err) {
-            console.error(err);
-            setError(t('teacher.login_connection_error'));
+
+            if (result.reason === 'invalid') {
+                setError(t('teacher.login_error'));
+            } else {
+                setError(t('teacher.login_connection_error'));
+            }
         } finally {
             setLoading(false);
         }
@@ -96,7 +113,7 @@ export default function TeacherLogin() {
 
                     <button
                         type="submit"
-                        disabled={loading || !username || !password}
+                        disabled={loading || !username.trim() || !password}
                         className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('teacher.login_btn')}

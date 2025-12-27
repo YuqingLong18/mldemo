@@ -12,6 +12,7 @@ import { ClassroomProvider } from './lib/classroom/ClassroomContext';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import StudentLogin from './pages/StudentLogin';
 import TeacherLogin from './pages/Teacher/TeacherLogin';
+import RequireTeacherAuth from './components/Teacher/RequireTeacherAuth';
 
 function App() {
   return (
@@ -27,7 +28,14 @@ function App() {
             <Route path="home" element={<Home />} />
             <Route path="supervised" element={<SupervisedLab />} />
             <Route path="unsupervised" element={<UnsupervisedLab />} />
-            <Route path="teacher/dashboard" element={<TeacherDashboard />} />
+            <Route
+              path="teacher/dashboard"
+              element={(
+                <RequireTeacherAuth>
+                  <TeacherDashboard />
+                </RequireTeacherAuth>
+              )}
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

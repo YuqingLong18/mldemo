@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClassroom, type FeaturedDataMessage } from '../../lib/classroom/ClassroomContext';
+import { clearTeacherAuth } from '../../lib/teacherAuth';
 import { Users, Eye, EyeOff, Activity, LogOut, Trash2, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -21,12 +22,16 @@ export default function TeacherDashboard() {
         onFeaturedData
     } = useClassroom();
 
-    // Placeholder auth state is no longer needed as we use centralized auth
-    // const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState<'roster' | 'monitoring'>('roster');
     const [transferringId, setTransferringId] = useState<string | null>(null);
     const transferTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
     const navigate = useNavigate();
+
+    const handleLogout = () => {
+        leaveRoom();
+        clearTeacherAuth();
+        navigate('/teacher/login', { replace: true });
+    };
 
     // Listen for incoming student model
     useEffect(() => {
@@ -174,7 +179,7 @@ export default function TeacherDashboard() {
                     </button>
 
                     <button
-                        onClick={leaveRoom}
+                        onClick={handleLogout}
                         className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title={t('teacher.dashboard.end_session')}
                     >
