@@ -48,7 +48,7 @@ export function joinRoom(code, studentSocketId, studentName) {
         status: 'idle',
         metrics: {}
     });
-    return { code, attentionMode: room.attentionMode };
+    return { code, attentionMode: room.attentionMode, teacherId: room.teacherId };
 }
 
 export function leaveRoom(socketId) {
@@ -61,7 +61,7 @@ export function leaveRoom(socketId) {
         }
         if (room.students.has(socketId)) {
             room.students.delete(socketId);
-            return { code, isTeacher: false };
+            return { code, isTeacher: false, teacherId: room.teacherId };
         }
     }
     return null;

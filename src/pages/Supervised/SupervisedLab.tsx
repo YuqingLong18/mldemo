@@ -104,8 +104,12 @@ export default function SupervisedLab() {
     const [isTraining, setIsTraining] = useState(false);
     const [isModelTrained, setIsModelTrained] = useState(false);
     const requestRef = useRef<number | undefined>(undefined);
+    const isPredictingRef = useRef(false);
+    const predictionInFlightRef = useRef(false);
+    const lastPredictionAtRef = useRef(0);
     const [predictionImages, setPredictionImages] = useState<PredictionImage[]>([]);
     const classesRef = useRef<ClassInfo[]>(classes);
+    const PREDICTION_INTERVAL_MS = 200;
 
     // Calculate metrics for classroom
     const totalSamples = classes.reduce((sum, c) => sum + c.count, 0);
@@ -267,6 +271,8 @@ export default function SupervisedLab() {
         return () => {
             // Cleanup
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
+            isPredictingRef.current = false;
+            predictionInFlightRef.current = false;
             if (classifierRef.current) {
                 classifierRef.current.dispose();
                 classifierRef.current = null;
@@ -322,14 +328,6 @@ export default function SupervisedLab() {
                 }
                 return c;
             });
-            
-            // Save updated state to storage
-            if (classifierRef.current) {
-                setTimeout(async () => {
-                    await saveModelToStorage(classifierRef.current!, updated);
-                }, 100);
-            }
-            
             return updated;
         });
 
@@ -397,14 +395,6 @@ export default function SupervisedLab() {
                     }
                     return c;
                 });
-                
-                // Save updated state to storage
-                if (classifierRef.current) {
-                    setTimeout(async () => {
-                        await saveModelToStorage(classifierRef.current!, updated);
-                    }, 100);
-                }
-                
                 return updated;
             });
 
@@ -506,46 +496,55 @@ export default function SupervisedLab() {
 
     const togglePrediction = (shouldPredict: boolean) => {
         if (shouldPredict && isModelTrained) {
+            lastPredictionAtRef.current = 0;
             setIsPredicting(true);
-            predictLoop();
         } else {
             setIsPredicting(false);
+            isPredictingRef.current = false;
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         }
     };
 
     // Prediction Loop
     const predictLoop = async () => {
-        if (!isPredicting && !requestRef.current) return; // Stop constraint
+        if (!isPredictingRef.current) return;
         if (!mobilenetRef.current || !classifierRef.current || !cameraRef.current?.video) {
             // Keep requesting frame until stopped explicitly or deps ready
-            if (isPredicting) requestRef.current = requestAnimationFrame(predictLoop);
+            if (isPredictingRef.current) requestRef.current = requestAnimationFrame(predictLoop);
             return;
         }
 
-        // Only predict if we have examples
-        if (classifierRef.current.getNumClasses() > 0) {
+        const now = performance.now();
+        const enoughTimeElapsed = now - lastPredictionAtRef.current >= PREDICTION_INTERVAL_MS;
+
+        // Only predict if we have examples, enough time has elapsed, and no prediction is already running.
+        if (
+            enoughTimeElapsed &&
+            !predictionInFlightRef.current &&
+            classifierRef.current.getNumClasses() > 0
+        ) {
             const video = cameraRef.current.video;
 
-            // Get embedding
-            const embedding = getEmbedding(mobilenetRef.current, video);
-
-            // Predict
+            predictionInFlightRef.current = true;
+            let embedding: tf.Tensor1D | null = null;
             try {
+                embedding = getEmbedding(mobilenetRef.current, video);
                 const result = await classifierRef.current.predictClass(embedding);
                 const confidences = Object.entries(result.confidences).map(([label, confidence]) => ({
                     label,
                     confidence
                 }));
                 setPredictions(confidences);
+                lastPredictionAtRef.current = now;
             } catch (e) {
                 console.error("Prediction error", e);
+            } finally {
+                embedding?.dispose();
+                predictionInFlightRef.current = false;
             }
-
-            embedding.dispose();
         }
 
-        if (isPredicting) {
+        if (isPredictingRef.current) {
             requestRef.current = requestAnimationFrame(predictLoop);
         }
     };
@@ -553,8 +552,11 @@ export default function SupervisedLab() {
     // Watch isPredicting to start/stop loop
     useEffect(() => {
         if (isPredicting) {
+            isPredictingRef.current = true;
             predictLoop();
         } else {
+            isPredictingRef.current = false;
+            predictionInFlightRef.current = false;
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         }
     }, [isPredicting]);
@@ -592,18 +594,9 @@ export default function SupervisedLab() {
     const handleClassNameChange = (id: string, newName: string) => {
         if (isReadOnly) return;
         setClasses(prev => {
-            const updated = prev.map(c =>
+            return prev.map(c =>
                 c.id === id ? { ...c, name: newName } : c
             );
-            
-            // Save updated classes to storage
-            if (classifierRef.current) {
-                setTimeout(async () => {
-                    await saveModelToStorage(classifierRef.current!, updated);
-                }, 100);
-            }
-            
-            return updated;
         });
     };
 

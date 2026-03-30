@@ -42,7 +42,9 @@ io.on('connection', (socket) => {
 
             // Notify teacher of update
             const state = roomManager.getRoomState(code);
-            socket.emit('room_state_update', state);
+            if (state) {
+                io.to(socket.id).emit('room_state_update', state);
+            }
         }
     });
 
@@ -78,12 +80,11 @@ io.on('connection', (socket) => {
             socket.join(code);
             socket.emit('joined_room', { code, attentionMode: result.attentionMode });
 
-            // Notify teacher
+            // Notify teacher only
             const roomData = roomManager.getRoomState(code);
-            // We need to find the teacher's socket ID or just broadcast to room "teacher" channel if we had one.
-            // But currently the teacher is IN the room too.
-            // Let's optimize: Teacher listens to 'room_state_update'
-            io.to(code).emit('room_state_update', roomData);
+            if (roomData) {
+                io.to(result.teacherId).emit('room_state_update', roomData);
+            }
         } else {
             socket.emit('error', 'Invalid Room Code');
         }
@@ -91,15 +92,13 @@ io.on('connection', (socket) => {
 
     socket.on('update_status', ({ status, metrics }) => {
         const room = roomManager.updateStudentStatus(socket.id, status, metrics);
-        // If successful, we strictly want to notify the TEACHER, but broadcasting to room is okay for now.
-        // Ideally, we'd send only to teacher to save bandwidth.
         if (room) {
-            // Find code roughly
-            // This is a bit inefficient, better to store code on socket
-            // For demo:
             const code = Array.from(socket.rooms).find(r => r.length === 6);
             if (code) {
-                io.to(code).emit('room_state_update', roomManager.getRoomState(code));
+                const roomState = roomManager.getRoomState(code);
+                if (roomState) {
+                    io.to(room.teacherId).emit('room_state_update', roomState);
+                }
             }
         }
     });
@@ -108,7 +107,10 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const result = roomManager.leaveRoom(socket.id);
         if (result && !result.isTeacher) {
-            io.to(result.code).emit('room_state_update', roomManager.getRoomState(result.code));
+            const roomState = roomManager.getRoomState(result.code);
+            if (roomState && result.teacherId) {
+                io.to(result.teacherId).emit('room_state_update', roomState);
+            }
         }
     });
 });
